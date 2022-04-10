@@ -52,6 +52,23 @@ export class LoggerAdapter implements LoggerI {
   private logger: LoggerI;
 
   constructor(private execContext?: ExecutionContextI, public repo = '', public sourceFile = '',  public _method = '') {
+    if(!this.execContext) {
+      this.execContext = {
+        config: {
+          log: {
+            logAttributes: {
+              hideAppContext: true,
+              hideRepo: true,
+              hideSourceFile: true,
+              hideMethod: true,
+              hideThread: true,
+              hideLevel: true,
+              hideRequestId: true
+            }
+          }
+        }
+      }
+    }
     if (this.execContext && this.execContext.config && this.execContext.config.log && this.execContext.config.log.level) {
       this.level = LoggerAdapter.levels.indexOf(this.execContext.config.log.level);
       if (this.execContext.config.log.showHidden) {
