@@ -74,10 +74,10 @@ export class LoggerAdapter implements LoggerI {
       if (this.execContext.config.log.showHidden) {
         this.showHidden = this.execContext.config.log.showHidden;
       }
-      if (this.execContext.config.log.depth) {
-        this.depth = this.execContext.config.log.depth;
-      }
+
     }
+    this.depth = this.execContext?.config?.log?.depth === undefined ? 5 : this.execContext.config.log.depth;
+
     this.initializeOverrides();
 
     this.attributesAsString = ''
