@@ -61,7 +61,7 @@ export class Hints extends Map<string, string | Object> {
     super();
     const log = new LoggerAdapter(execContext, 'base-utility', 'hints', 'constructor');
     if(!hintBody || hintBody.trim().length === 0) {
-      log.warn('No text provided to parse hints');
+      log.debug('No text provided to parse hints');
       return;
     }
     this.hintBody = hintBody.trim();
