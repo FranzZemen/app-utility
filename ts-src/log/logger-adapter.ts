@@ -42,7 +42,7 @@ export class LoggerAdapter implements LoggerI {
   private start: number = undefined;
   private interim: number = undefined;
 
-  private showHidden = false;
+  private showHiddenInspectAttributes = false;
   private depth = 5;
 
   private attributesAsString: string;
@@ -69,25 +69,67 @@ export class LoggerAdapter implements LoggerI {
         }
       }
     }
-    if (this.execContext && this.execContext.config && this.execContext.config.log && this.execContext.config.log.level) {
+    if(!this.execContext.config) {
+      this.execContext.config = {
+        log: {
+          logAttributes: {
+            hideAppContext: true,
+            hideRepo: true,
+            hideSourceFile: true,
+            hideMethod: true,
+            hideThread: true,
+            hideLevel: true,
+            hideRequestId: true
+          }
+        }
+      }
+    }
+    if(!this.execContext.config.log) {
+      this.execContext.config.log = {
+        logAttributes: {
+          hideAppContext: true,
+          hideRepo: true,
+          hideSourceFile: true,
+          hideMethod: true,
+          hideThread: true,
+          hideLevel: true,
+          hideRequestId: true
+        }
+      }
+    }
+    if(!this.execContext.config.log.logAttributes) {
+      this.execContext.config.log.logAttributes = {
+          hideAppContext: true,
+          hideRepo: true,
+          hideSourceFile: true,
+          hideMethod: true,
+          hideThread: true,
+          hideLevel: true,
+          hideRequestId: true
+      }
+    }
+    if (this.execContext.config.log.level) {
       this.level = LoggerAdapter.levels.indexOf(this.execContext.config.log.level);
       if (this.execContext.config.log.showHidden) {
-        this.showHidden = this.execContext.config.log.showHidden;
+        this.showHiddenInspectAttributes = this.execContext.config.log.showHidden;
       }
-
+    } else {
+      this.level = LoggerAdapter.levels.indexOf(LoggerAdapter.lvl_info);
+      this.showHiddenInspectAttributes = false;
     }
-    this.depth = this.execContext?.config?.log?.depth === undefined ? 5 : this.execContext.config.log.depth;
+    this.depth = this.execContext.config.log.depth === undefined ? 5 : this.execContext.config.log.depth;
 
     this.initializeOverrides();
 
-    this.attributesAsString = ''
-      + (this.execContext?.config?.log?.logAttributes?.hideAppContext ? '' : '; appContext: ' + this.execContext?.appContext)
-      + (this.execContext?.config?.log?.logAttributes?.hideRepo ? '' : '; repo: ' + this.repo)
-      + (this.execContext?.config?.log?.logAttributes?.hideSourceFile ? '' : '; sourceFile: ' + this.sourceFile)
-      + (this.execContext?.config?.log?.logAttributes?.hideMethod ? '' : '; method: ' + this._method)
-      + (this.execContext?.config?.log?.logAttributes?.hideThread ? '' : '; thread: ' + this.execContext?.thread)
-      + (this.execContext?.config?.log?.logAttributes?.hideRequestId ? '' : '; requestId: ' + this.execContext?.requestId)
-      + (this.execContext?.config?.log?.logAttributes?.hideLevel ? '' : '; logLevel: ' + LoggerAdapter.levels[this.level]);
+    const logAttributes = this.execContext.config.log.logAttributes;
+      this.attributesAsString = ''
+        + (logAttributes.hideAppContext === false ? '; appContext: ' + this.execContext?.appContext : '')
+        + (logAttributes.hideRepo === false ? '; repo: ' + this.repo: '')
+        + (logAttributes.hideSourceFile === false ?'; sourceFile: ' + this.sourceFile: '')
+        + (logAttributes.hideMethod === false ? '; method: ' + this._method: '')
+        + (logAttributes.hideThread === false ? '; thread: ' + this.execContext?.thread: '')
+        + (logAttributes.hideRequestId === false ? '; requestId: ' + this.execContext?.requestId: '')
+        + (logAttributes.hideLevel === false ? '; logLevel: ' + LoggerAdapter.levels[this.level]: '');
 
     const module = this.execContext?.config?.log?.loggerModule;
     if(module && module.moduleName && (module.constructorName || module.functionName)) {
@@ -136,10 +178,10 @@ export class LoggerAdapter implements LoggerI {
       const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
       logMethod(color + str + Reset,'');
     } else if(this.execContext?.config?.log?.flatten) {
-      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHidden, this.depth);
+      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset,'');
     } else {
-      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHidden, this.depth);
+      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset,'');
     }
 
@@ -186,7 +228,7 @@ export class LoggerAdapter implements LoggerI {
           // Override on repo
           this.level = LoggerAdapter.levels.indexOf(override.level);
           if (override.showHidden) {
-            this.showHidden = override.showHidden;
+            this.showHiddenInspectAttributes = override.showHidden;
           }
           if (override.depth) {
             this.depth = override.depth;
@@ -197,7 +239,7 @@ export class LoggerAdapter implements LoggerI {
           if (matchesSourceFile) {
             this.level = LoggerAdapter.levels.indexOf(override.level);
             if (override.showHidden) {
-              this.showHidden = override.showHidden;
+              this.showHiddenInspectAttributes = override.showHidden;
             }
             if (override.depth) {
               this.depth = override.depth;
@@ -209,7 +251,7 @@ export class LoggerAdapter implements LoggerI {
           if (matchesSourceFile && matchesMethod) {
             this.level = LoggerAdapter.levels.indexOf(override.level);
             if (override.showHidden) {
-              this.showHidden = override.showHidden;
+              this.showHiddenInspectAttributes = override.showHidden;
             }
             if (override.depth) {
               this.depth = override.depth;
