@@ -27,3 +27,9 @@ the last on a function invocation, to carry execution context.  This context inc
   deployed components from the @franzzemen environment - not just usage of the libraries.  
 - The config:  Probably the most powerful option, this provides configuration options that survive restarts.  For 
   most users initially this will be the logger adapter configurations.
+
+It is not intended that the Execution Context be overloaded with additional fields, especially _functionally 
+oriented fields_.  There is no guarantee that the state of the Execution Context will be maintained or stay constant,
+or be duplicated losing unknown fields in the process.  There are points in the libraries where this is purposefully 
+done to break any attempts to leverage it as a "session" or "global" variable.  Its only intent is to carry and modify
+execution related information!

@@ -2,11 +2,17 @@ import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {ModuleDefinition, moduleDefinitionSchema} from '../load-from-module';
 
 export interface LogOverrideConfigI {
+  // The repo to override logging for
   repo: string;
+  // The level to override
   level: string;
+  // The source to override logging for (optional)
   source?: string;
+  // The method to override logging for (optional)
   method?: string | string[];
+  // Whether inspect should show hidden properties for this override (optional)
   showHidden?: boolean;
+  // The override for object depth inspect will use
   depth?: number;
 }
 
@@ -50,19 +56,33 @@ export const logOverrideSchema = {
 
 // See configuration object for options
 export interface LogConfigI {
+  // If present, loads the logger implementation pointed to by ModuleDefinition
   loggerModule?: ModuleDefinition;
+  // The log level to log.  Available levels are 'none', 'error', 'warn','info', 'debug' and 'trace'
   level?: string;
+  // The object depth to log when logging object properties
   depth?: number;
+  // Whether node's inspect method should show hidden attributes
   showHidden?: boolean;
+  // Logging overrides
   overrides?: LogOverrideConfigI[];
+  // The log attributes are 'flattened' into a single line, not logged as an object along with the data
   flatten?: boolean;
+  // The log attributes logging flags
   logAttributes?: {
+    // If true or missing, logs the appContext from the Execution Context
     hideAppContext?: boolean,
+    // If true or missing, logs the repo supplied to the LoggingAdapter constructor
     hideRepo?: boolean,
+    // If true or missing, logs the source file supplied to the LoggingAdapter constructor
     hideSourceFile?: boolean,
+    // If true or missing, logs the method supplied to the LoggingAdapter constructor
     hideMethod?: boolean,
+    // If true or missing, logs thread from the Execution Context
     hideThread?: boolean,
+    // If true or missing, logs requestId from the Execution Context
     hideRequestId?: boolean,
+    // If true or missing, logs the debug level
     hideLevel?: boolean
   };
 }
