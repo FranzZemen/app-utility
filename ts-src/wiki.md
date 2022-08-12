@@ -4,4 +4,5 @@ This package supports other @franzzemen.  It provides little standalone function
 and hints.  
 
 1. [The Execution Context](./execution-context.md)
+2. [Logging](./log/logger-adapter.md)
 
