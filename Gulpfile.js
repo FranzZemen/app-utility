@@ -11,9 +11,9 @@ exports.npmu = (cb) => npmu([
   {
     path: join(__dirname, '../gulp-base'), packageName: '@franzzemen/gulp-base',
   }, {
-    path: join(__dirname, '../gulp-base'), packageName: '@franzzemen/npmu',
+    path: join(__dirname, '../npmu'), packageName: '@franzzemen/npmu',
   }, {
-    path: join(__dirname, '../gulp-base'), packageName: '@franzzemen/app-utility',
+    path: join(__dirname, './'), packageName: '@franzzemen/app-utility',
   }])
   .then(() => {
 console.log('cb...');
