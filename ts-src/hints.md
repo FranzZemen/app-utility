@@ -4,7 +4,7 @@ unquoted words, quoted words or JSON.  The JSON can be literal JSON or loaded fr
 
 ## Installation
 
-    npm i @franzzemen/base-utility
+    npm i @franzzemen/app-utility
 
 ## Usage
 

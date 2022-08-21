@@ -5,4 +5,5 @@ and hints.
 
 1. [The Execution Context](./execution-context.md)
 2. [Logging](./log/logger-adapter.md)
+3. [Hints](./hints.md)
 
