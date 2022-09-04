@@ -57,9 +57,9 @@ export class Hints extends Map<string, string | Object> {
     }
   }
 
-  constructor(hintBody: string, execContext?: ExecutionContextI) {
+  constructor(hintBody: string, ec?: ExecutionContextI) {
     super();
-    const log = new LoggerAdapter(execContext, 'base-utility', 'hints', 'constructor');
+    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'constructor');
     if(!hintBody || hintBody.trim().length === 0) {
       log.debug('No text provided to parse hints');
       return;
@@ -95,7 +95,7 @@ export class Hints extends Map<string, string | Object> {
     while((match = nvRegex.exec(hintsCopy)) !== null) {
       const resource = match[2].trim();
       try {
-        const json = loadJSONResource(resource);
+        const json = loadJSONResource(resource,undefined, ec);
         this.set(match[1], json);
       } catch (err) {
         const error = new Error(`Cannot load JSON from relative path ${resource}`);
@@ -126,9 +126,9 @@ export class Hints extends Map<string, string | Object> {
       let json;
       try {
         if(propertyName) {
-          json = loadJSONFromPackage({moduleName, propertyName});
+          json = loadJSONFromPackage({moduleName, propertyName}, undefined, ec);
         } else {
-          json = loadJSONFromPackage({moduleName, functionName});
+          json = loadJSONFromPackage({moduleName, functionName}, undefined, ec);
         }
         this.set(match[1], json);
       } catch (err) {

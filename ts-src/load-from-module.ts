@@ -212,7 +212,11 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
     const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
     factoryFunction = module[factoryFunctionName];
     if (factoryFunction) {
-      t = factoryFunction(...paramsArray);
+      if(paramsArray) {
+        t = factoryFunction(...paramsArray);
+      } else {
+        t = factoryFunction();
+      }
     }
   } else {
     t =  new module[moduleDef.constructorName](...paramsArray);

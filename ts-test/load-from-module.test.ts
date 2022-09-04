@@ -5,7 +5,7 @@ import {isConstrainedModuleDefinition, isModuleDefinition, loadFromModule} from 
 let should = chai.should();
 let expect = chai.expect;
 
-describe('re tests', () => {
+describe('app-utility tests', () => {
   describe('Load from module tests', () => {
     describe('load-from-module.test', () => {
       it('should validate module, not constrained module', done => {
@@ -52,7 +52,7 @@ describe('re tests', () => {
       });
       it('should load via module default from bad-extended', done => {
         // Path relative to root of package, at test time this is relative to publish
-        const result = loadFromModule<any>({moduleName: '../testing/bad-extended.cjs'});
+        const result = loadFromModule<any>({moduleName: '../testing/bad-extended.cjs'},undefined, undefined, undefined);
         expect(result).to.exist;
         done();
       });

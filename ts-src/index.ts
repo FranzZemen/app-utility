@@ -5,3 +5,4 @@ export * from './load-from-module.js';
 export * from './log/index.js';
 export * from './hints.js';
 export * from './await-evaluation.js';
+export * from './fastest-validator-util.js';

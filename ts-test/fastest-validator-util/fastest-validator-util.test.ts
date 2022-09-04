@@ -6,7 +6,7 @@ import {
   isAsyncCheckFunction, isCheckFunction,
   isSyncCheckFunction,
   isValidationSchema
-} from '../../ts-src/fastest-validator-util.js';
+} from '../../publish/index.js';
 
 let should = chai.should();
 let expect = chai.expect;
@@ -15,10 +15,12 @@ describe('app-utility tests', () => {
   describe('fastest-validator-util/fastest-validator-util.test', () => {
     it('should identify a validation schema', done => {
       const schema: ValidationSchema = {
-        type: 'object',
-        optional: true,
-        props: {
-          someProp: {type: 'boolean', optional: true}
+        something: {
+          type: 'object',
+          optional: true,
+          props: {
+            someProp: {type: 'boolean', optional: true}
+          }
         }
       }
       isValidationSchema(schema).should.be.true;
@@ -28,16 +30,19 @@ describe('app-utility tests', () => {
     });
     it('should identify a synchronous check', done => {
       const schema: ValidationSchema = {
-        type: 'object',
-        optional: true,
-        props: {
-          someProp: {type: 'boolean', optional: true}
+        something: {
+          type: 'object',
+          optional: true,
+          props: {
+            someProp: {type: 'boolean', optional: true}
+          }
         }
       }
       const check: CheckFunction = (new Validator()).compile(schema);
       isSyncCheckFunction(check).should.be.true;
       isAsyncCheckFunction(check).should.be.false;
       isValidationSchema(check).should.be.false;
+      done();
     })
     it('should identify an asynchronous check', done => {
       function dummyAsync(v): Promise<number> {
@@ -45,15 +50,16 @@ describe('app-utility tests', () => {
       }
       const schema: ValidationSchema = {
         $$async: true,
-        type: 'object',
-        optional: true,
-        props: {
-          someProp: {type: 'boolean', optional: true},
-          username: {
-            type: "string",
-            min: 2,
-            custom: async (v, errors) => {
-              return dummyAsync(v);
+        something: {
+          type: 'object',
+          optional: true,
+          props: {
+            someProp: {type: 'boolean', optional: true},
+            username: {
+              type: "number",
+              custom: async (v, errors) => {
+                return dummyAsync(v);
+              }
             }
           }
         }
@@ -62,6 +68,7 @@ describe('app-utility tests', () => {
       isAsyncCheckFunction(check).should.be.true;
       isSyncCheckFunction(check).should.be.false;
       isValidationSchema(check).should.be.false;
+      done();
     })
   })
 })

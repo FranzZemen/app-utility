@@ -16,7 +16,7 @@ export function isAsyncCheckFunction(check: any | CheckFunction): check is Async
 }
 
 export function isSyncCheckFunction(check: any | CheckFunction): check is SyncCheckFunction {
-  return check.sync === false;
+  return check.async === false;
 }
 
 
