@@ -1,4 +1,4 @@
-import {createRequire} from 'module';
+import {createRequire} from 'node:module';
 import {ExecutionContextI} from './execution-context.js';
 import {LoggerAdapter} from './log/index.js';
 /**
