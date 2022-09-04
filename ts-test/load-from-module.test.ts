@@ -5,7 +5,7 @@ import {isConstrainedModuleDefinition, isModuleDefinition, loadFromModule} from 
 let should = chai.should();
 let expect = chai.expect;
 
-describe('Base Utility Tests', () => {
+describe('re tests', () => {
   describe('Load from module tests', () => {
     describe('load-from-module.test', () => {
       it('should validate module, not constrained module', done => {

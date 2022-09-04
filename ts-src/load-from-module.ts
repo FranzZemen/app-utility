@@ -1,6 +1,15 @@
+import Validator, {ValidationError, ValidationSchema, SyncCheckFunction, AsyncCheckFunction} from 'fastest-validator';
 import {createRequire} from 'node:module';
+import {isPromise} from 'util/types';
 import {ExecutionContextI} from './execution-context.js';
+import {
+  CheckFunction,
+  isAsyncCheckFunction,
+  isSyncCheckFunction,
+  isValidationSchema
+} from './fastest-validator-util.js';
 import {LoggerAdapter} from './log/index.js';
+
 /**
  * NOTE NOTE NOTE:  By definition this needs to be in the root of the package as relative loads expect it
  * @param moduleName
@@ -9,11 +18,18 @@ import {LoggerAdapter} from './log/index.js';
 const requireModule = createRequire(import.meta.url);
 
 export enum ModuleResolution {
-  "commonjs",
-  "es"
+  'commonjs',
+  'es'
 }
 
-export type ModuleDefinition = {moduleName: string, functionName?: string, constructorName?: string, propertyName?:string, moduleResolution?: ModuleResolution};
+export type ModuleDefinition = {
+  moduleName: string,
+  functionName?: string,
+  constructorName?: string,
+  propertyName?: string,
+  moduleResolution?: ModuleResolution,
+  validationSchema?: ValidationSchema
+};
 
 export function isModuleDefinition(module: any | ModuleDefinition): module is ModuleDefinition {
   const moduleNameExists = 'moduleName' in module;
@@ -23,7 +39,7 @@ export function isModuleDefinition(module: any | ModuleDefinition): module is Mo
   const moduleResolutionExists = 'moduleResolution' in module;
   return moduleNameExists  // moduleName must always be present
     && ((!functionNameExists && !constructorNameExists && !propertyNameExists) // None of the constraints are present
-      ||  (functionNameExists && !(constructorNameExists || propertyNameExists)) // functionName is present but not the other two
+      || (functionNameExists && !(constructorNameExists || propertyNameExists)) // functionName is present but not the other two
       || (constructorNameExists && !(functionNameExists || propertyNameExists)) // constructorName is present but not the other two
       || (propertyNameExists && !(functionNameExists || constructorNameExists))); // propertyName is present but not the other two
 }
@@ -54,21 +70,80 @@ export const moduleDefinitionSchema = {
       optional: true
     }
   }
-}
+};
 
-export function loadJSONResource(relativePath, ec?: ExecutionContextI): Object {
-  try {
-    // JSON can always be loaded dynamically with require in both commonjs and es
-    return requireModule(relativePath);
-  } catch (err) {
-    console.error(err);
-    throw err;
+
+function validateSchema<T>(def: string | ModuleDefinition, obj, check: ValidationSchema | CheckFunction, ec?: ExecutionContextI): T | Promise<T> {
+  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'validationCheck');
+  let validationCheck: CheckFunction;
+  if(check) {
+    if (isValidationSchema(check)) {
+      // This is the least performant way by 100x...encourage user to pass a cached check function
+      validationCheck = (new Validator()).compile(check);
+    } else {
+      validationCheck = check;
+    }
+    if (isSyncCheckFunction(validationCheck)) {
+      let result: true | ValidationError[];
+      try {
+        result = validationCheck(obj);
+      } catch (err) {
+        log.error(err);
+        throw err;
+      }
+      if (result === true) {
+        return obj;
+      } else {
+        log.warn({def, schema: isValidationSchema(check) ? check : 'compiled'}, 'Sync validation failed.');
+        const err = new Error(`Sync validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
+        log.error(err);
+        throw err;
+      }
+    } else if (isAsyncCheckFunction(validationCheck)) {
+      const resultPromise: Promise<true | ValidationError[]> = validationCheck(obj);
+      return resultPromise
+        .then(result => {
+          if (result === true) {
+            return obj;
+          } else {
+            log.warn({def, schema: isValidationSchema(check) ? check : 'compiled'}, 'Async validation failed.');
+            const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
+            log.error(err);
+            throw err;
+          }
+        }, err => {
+          log.error(err);
+          throw err;
+        });
+    }
+  } else {
+    return obj;
   }
 }
 
-function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object {
+export function loadJSONResource(relativePath, check?: ValidationSchema | CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
+  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
+
+  // JSON can always be loaded dynamically with require in both commonjs and es
+  const maybeJSON = requireModule(relativePath);
+  if (maybeJSON) {
+    // Protect from abuse
+    let jsonObject;
+    try {
+      jsonObject = JSON.parse(JSON.stringify(maybeJSON));
+    } catch (err) {
+      log.error(err);
+      throw err;
+    }
+    return validateSchema<any>(relativePath, jsonObject, check, ec);
+  } else {
+    throw new Error(`module path ${relativePath} resolves to undefined`);
+  }
+}
+
+function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, check?: CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
-  if(!moduleDef.functionName && !moduleDef.propertyName) {
+  if (!moduleDef.functionName && !moduleDef.propertyName) {
     const err = new Error('Either functionName or propertyName must be defined on moduleDef');
     log.error(err);
     throw err;
@@ -85,7 +160,17 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
       throw new Error(`Mismatch between mdoule ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
     }
     if (typeof jsonAsString === 'string') {
-      return JSON.parse(jsonAsString); // Throws if error
+      const jsonObj = JSON.parse(jsonAsString); // Always expect strings in order to protect from abuse
+      if(moduleDef.validationSchema || check) {
+        // Always prefer the compiled validation
+        if(check) {
+          return validateSchema<any>(moduleDef, jsonObj, check, ec);
+        } else {
+          return validateSchema<any>(moduleDef, jsonObj, moduleDef.validationSchema, ec);
+        }
+      } else {
+        return jsonObj;
+      }
     } else {
       throw new Error(`Value for module ${moduleDef.moduleName}, function invocation ${moduleDef.functionName} or property ${moduleDef.propertyName} is not a string`);
     }
@@ -94,24 +179,25 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
   }
 }
 
-export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
+export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONFromPackage');
   const functionName = moduleDef?.functionName?.trim();
   const propertyName = moduleDef?.propertyName?.trim();
-  if(moduleDef?.moduleName && (functionName?.length || propertyName?.length)) {
-    if(functionName?.length && propertyName?.length) {
+  if (moduleDef?.moduleName && (functionName?.length || propertyName?.length)) {
+    if (functionName?.length && propertyName?.length) {
       throw new Error(`Only one of functionName ${moduleDef.functionName} or propertyName ${moduleDef.propertyName} may be specified for module ${moduleDef.moduleName}`);
     } else {
-      if(moduleDef.moduleResolution === ModuleResolution.es) {
+      if (moduleDef.moduleResolution === ModuleResolution.es) {
         log.debug('es module resolution, forcing asynchronous result');
         return import(moduleDef.moduleName)
           .then(module => {
-            return loadJSONPropertyFromModule (module,moduleDef, ec);
-          })
+            return loadJSONPropertyFromModule(module, moduleDef, check, ec);
+          });
       } else {
         log.debug('COMMONJS module resolution');
         let module = requireModule(moduleDef.moduleName);
-        return loadJSONPropertyFromModule (module,moduleDef, ec);
+        // Note...this could be a Promise if any validation is async
+        return loadJSONPropertyFromModule(module, moduleDef, check, ec);
       }
     }
   } else {
@@ -119,20 +205,26 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionC
   }
 }
 
-function loadInstanceFromModule<T> (module: any, moduleDef: ModuleDefinition, paramsArray?: any[], ec?: ExecutionContextI): T {
+function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction, ec?: ExecutionContextI, validationSchema?: ValidationSchema): Promise<T> | T {
+  let t: T;
   if (moduleDef.functionName || moduleDef.constructorName === undefined) {
     let factoryFunction: (...params) => T;
     const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
     factoryFunction = module[factoryFunctionName];
     if (factoryFunction) {
-      return factoryFunction(paramsArray);
+      t = factoryFunction(...paramsArray);
     }
   } else {
-    return new module[moduleDef.constructorName](paramsArray);
+    t =  new module[moduleDef.constructorName](...paramsArray);
+  }
+  if(check) {
+    return validateSchema<T>(moduleDef, t, check, ec);
+  } else {
+    return t;
   }
 }
 
-export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], ec?: ExecutionContextI): Promise<T> | T {
+export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction, ec?: ExecutionContextI): Promise<T> | T {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
   try {
     /*
@@ -140,11 +232,11 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
       compiled with resolution commonjs; this is because the implementation assumes a dynamic import for anything but
       commonjs, which is consistent with both resolutions.
      */
-    if(moduleDef.moduleResolution === ModuleResolution.es) {
+    if (moduleDef.moduleResolution === ModuleResolution.es) {
       log.debug('es module resolution, forcing asynchronous result');
       return import(moduleDef.moduleName)
         .then(module => {
-          return loadInstanceFromModule<T>(module, moduleDef, paramsArray, ec);
+          return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
         }, err => {
           log.error(err);
           throw err;
@@ -152,10 +244,10 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
     } else {
       log.debug('commonjs module resolution');
       const module = requireModule(moduleDef.moduleName);
-      return loadInstanceFromModule<T>(module, moduleDef, paramsArray, ec);
+      return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
     }
   } catch (err) {
-    console.error (err);
+    console.error(err);
     throw err;
   }
 }

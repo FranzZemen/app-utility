@@ -1,4 +1,4 @@
-import Validator, {ValidationError} from 'fastest-validator';
+import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {LogConfigI, logConfigSchema} from './log/index.js';
 
 export interface AppConfigI {
@@ -6,7 +6,7 @@ export interface AppConfigI {
   extended?: any;
 }
 
-export const appConfigSchema = {
+export const appConfigSchema: ValidationSchema = {
   type: 'object',
   optional: true,
   props: {

@@ -20,15 +20,20 @@ The Module Definition specification is:
         functionName?: string, 
         constructorName?: string, 
         propertyName?:string,
-        moduleResolution?: string | ModuleResolution
+        moduleResolution?: string | ModuleResolution,
+        validationSchema?: ValidationSchema | JSON
     };
 
     where:
         moduleName:  The moduleName is the name of either an installed package or a relative path, or JSON file.
-        functionName:  The name of the factory function in the loaded module.  Not used for JSON files.
+        functionName:  The name of the factory function in the loaded module.  Not used for JSON files.  
         constructorName:  The name of the factory constructor in the loaded module.  Not used for JSON files or modules providing JSON properties.
         propertyName:  The name of a JSON property in the loaded module
         moduleResolution:  The module type of the loaded module. Either 'commonjs' or 'es' or a value from the enum ModuleResolution.
+        validationSchema:  A schema to validate the loaded object, compliant with 'fastest-validator' schema 
+
+Because functions, constructors and properties in the target module are accessed using the array operator [], these 
+may be nested.  For example 'myFunctions.someFactoryFunction', where myFunctions is the actual export.
 
 ## Module Resolution
 With the advent of support for ES modules, module resolution specification becomes important, whereas prior to this
@@ -52,38 +57,67 @@ Otherwise, depending on which node_modules is used by the package loader, your r
 
 ## Loading JSON
 
-      loadJSONResource(relativePath, ec?: ExecutionContextI): Object
+      loadJSONResource(relativePath, check?: ValidationSchema | CheckFunction, ec?: ExecutionContextI): Object | Promise<Object>
 
-This is simply a wrapper to require (obtained through createRequire)
+      where:
+         relativePath: The path to the JSON, any path allowable for this by Node is acceptable.  See Relative Paths above
+         check: Either a schema which will be compiled in the function, or a compiled CheckFunction (presumably cached)
+         ec: The execution context
 
-### Factory Function
-If a F
+This is simply a wrapper to require (obtained through createRequire), returning the JSON object.  
 
-        functionName:  
-            If supplied, constructorName will be ignored.  This is the name of the ** factory ** function 
-            inside the module that will be invoked along with the paramsArray to create the desired instance of 
-            whatever it is the module is meant to load.  ** Again, this function is a factory function, not the actual 
-            instance of whatever it is you are trying to load **.  Obviously you can implement any factory function 
-            you wish, as long as it meets the target criteria in question.
+If a validation schema has been provided, and that schema is marked for asynchronous validation, a Promise to the JSON 
+object is returned.  The same holds true if a CheckFunction is provided and it is an AsyncCheckFunction.  An exception is 
+thrown if the object cannot be loaded or if it doesn't validate (with appropriate logging).
 
-        constructorName:
-            If supplied, functionName should be undefined.  It represents a constructor (class) name exported by the 
-            module that can be invoked to get an instance of the class desired.
+From a security perspective, validation is not as critical as when loanding an object from a factory function, because 
+the returned object is stringified and parsed, which will only result in non-functional properties.
 
-        propertyName:
-            This is not used in the loadFromModule function.  It is used in the loadJSONFromPackage function.
+## Loading JSON From Module Factory Function
 
-The @franzzemen packages often provide extensible functionality that can be defined and loaded from local or well known
-packages. This is the purpose of the load-from-module.ts module and the associated loadFromModule function.
+      loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFunction, ec?: ExecutionContextI): Object | Promise<Object>
 
-The modul
+      where:
+         moduleDef:  the ModuleDefinition, which may include a validation schema
+         check: A validation check function, presumably externally cached and much faster than schema
+         ec: The xecution context
+         
 
-To load a module dynamically, one invokes loadFromModule:
+If a factory function 'functionName' is specified the propertyName will be ignored.  In this case, the function will 
+be retrieved and called to get the object.  The factory function must not be asynchronous (must not return a Promise).
 
-    function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[]): T;
+IMPORTANT NOTE:  The returned JSON from the factory function is expected to be a **string**, not an object! Parsing 
+is done by this package, to avoid this function being abused.
 
-The Module Definition specifies which module to load and which factory function or constructor to call to obtain and
-instance of T, with the paramsArray being an array of parameters to pass to the factory function or constructor. The
-parametric variable T indicates the type of instance returned.
+As mentioned, if moduleResolution is 'es' for the target module, the code will transition to asynchronous, and 
+return a Promise.  You will therefore need to be able to handle promises or make a decision that your modules will 
+always be 'commonjs' and throw an error on Promise.
 
-da
+Because validations can be asynchronous, a Promise can also be returned in that case.
+
+The moduleDefinition can contain a validation schema.  If check is also provided, the CheckFunction will be used 
+for validation, otherwise the schema (if it is provided) will be used.
+
+From a security perspective, validation is not as critical as when loading an object from a factory function, because
+the returned value from the function is a string and parsed after it is obtained.
+
+### Object Instance Factory
+
+      loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction, ec?: ExecutionContextI): Promise<T> | T 
+      where:
+         mdouleDef: The ModuleDefinition, which may include a validation schema
+         paramsArray:  An array of parameters to provide the factory function on constructor (the array will be spread with the spread operator ...).
+         check: A validation check function, presumably externally cached and much faster than schema
+         ec: The xecution context
+
+This loads the target module and creates a new instance, using either the factory function or constructor supplied.  If
+the function name is provided, the constructor name will be ignored.  The factory function  must not be asynchronous (must not 
+return a Promise).
+
+If the loaded module is of type 'es', or if any validation is asynchronous, a Promise will be returned.
+
+The moduleDefinition can contain a validation schema.  If check is also provided, the CheckFunction will be used
+for validation, otherwise the schema (if it is provided) will be used.
+
+From a security perspective, providing validation (schema or CheckFunction) is recommended.  
+
