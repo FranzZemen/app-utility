@@ -1,6 +1,6 @@
 import chai from 'chai';
 import 'mocha';
-import {ValidationError} from 'fastest-validator';
+import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {isPromise} from 'util/types';
 import {
   isConstrainedModuleDefinition,
@@ -147,7 +147,7 @@ describe('app-utility tests', () => {
         }
       });
       it('should load json with async schema check', () => {
-        const schema:LoadSchema = {
+        const schema: LoadSchema = {
           validationSchema: {
             $$async: true,
             name: {type: 'string'},
@@ -165,6 +165,61 @@ describe('app-utility tests', () => {
           useNewCheckerFunction: true
         };
         const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+        isPromise(testJsonObj).should.be.true;
+        return testJsonObj.then(obj => {
+          obj.label.should.equal('A');
+        });
+      });
+      it('should load json with async schema fail', () => {
+        const schema: LoadSchema = {
+          validationSchema: {
+            $$async: true,
+            name: {type: 'string'},
+            id: {type: 'number'},
+            label: {
+              type: 'string',
+              custom: async (v, errors: ValidationError[]) => {
+                if (v !== 'B') {
+                  errors.push({
+                    type: 'unique',
+                    actual: v,
+                    field: 'label',
+                    expected: 'B',
+                    message: 'Wrong value for label'
+                  });
+                }
+                return v;
+              }
+            }
+          },
+          useNewCheckerFunction: true
+        };
+        const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+        isPromise(testJsonObj).should.be.true;
+        return testJsonObj.then(obj => {
+          unreachableCode.should.be.true;
+        }, err => {
+          console.error(err);
+          err.should.exist;
+        });
+      });
+      it('should load json with compiled async check', () => {
+        const schema: ValidationSchema = {
+          $$async: true,
+          name: {type: 'string'},
+          id: {type: 'number'},
+          label: {
+            type: 'string',
+            custom: async (v, errors: ValidationError[]) => {
+              if (v !== 'A') {
+                errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
+              }
+              return v;
+            }
+          }
+        };
+        const check = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
+        const testJsonObj: any = loadJSONResource('../testing/test-json.json', check, undefined);
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           obj.label.should.equal('A');

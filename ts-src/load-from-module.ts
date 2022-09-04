@@ -111,7 +111,7 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
           if (result === true) {
             return obj;
           } else {
-            log.warn({def, schema: isLoadSchema(check) ? check : 'compiled'}, 'Async validation failed.');
+            log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Async validation failed.');
             const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
             log.error(err);
             throw err;
