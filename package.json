@@ -1,6 +1,6 @@
 {
   "name": "@franzzemen/app-utility",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Basic application utilities",
   "main": "Gulpfile.js",
   "type": "module",
