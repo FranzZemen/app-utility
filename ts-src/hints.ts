@@ -1,6 +1,6 @@
-import {ExecutionContextI} from './execution-context';
-import {loadJSONFromPackage, loadJSONResource} from './load-from-module';
-import {LoggerAdapter} from './log';
+import {ExecutionContextI} from './execution-context.js';
+import {loadJSONFromPackage, loadJSONResource} from './load-from-module.js';
+import {LoggerAdapter} from './log/index.js';
 
 export type Fragment = {frag: string, start: number, end?: number}
 

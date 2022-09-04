@@ -1,4 +1,4 @@
-import {ExecutionContextI} from './execution-context';
+import {ExecutionContextI} from './execution-context.js';
 
 /**
  * Defines a function type that returns a Promise of any or any itself.

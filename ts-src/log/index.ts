@@ -1,3 +1,3 @@
-export * from './logger-adapter';
-export * from './logger-config';
-export * from './color-constants';
+export * from './logger-adapter.js';
+export * from './logger-config.js';
+export * from './color-constants.js';

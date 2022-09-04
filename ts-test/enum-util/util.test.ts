@@ -1,6 +1,7 @@
+import {isEnumeratedType, reverseEnumerationToSet} from '../../publish/index.js';
+
 import 'mocha';
 import chai from 'chai';
-import {isEnumeratedType, reverseEnumerationToSet} from '../../publish';
 
 let should = chai.should();
 let expect = chai.expect;

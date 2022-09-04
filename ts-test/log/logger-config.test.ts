@@ -1,6 +1,6 @@
 import chai from 'chai';
 import 'mocha';
-import {ExecutionContextI, LogConfigI, LoggerAdapter, validateLogConfig} from '../../publish';
+import {ExecutionContextI, LogConfigI, LoggerAdapter, validateLogConfig} from '../../publish/index.js';
 
 let should = chai.should();
 let expect = chai.expect;

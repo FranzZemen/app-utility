@@ -1,5 +1,5 @@
 import Validator, {ValidationError} from 'fastest-validator';
-import {LogConfigI, logConfigSchema} from './log';
+import {LogConfigI, logConfigSchema} from './log/index.js';
 
 export interface AppConfigI {
   log: LogConfigI

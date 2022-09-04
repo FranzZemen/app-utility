@@ -1,11 +1,11 @@
 
 class BadDataType {
-  name: number;
-  bar (): number {
+  name;
+  bar () {
     return 1;
   }
 }
 
-export default function create() {
+exports.default = function create() {
   return new BadDataType();
 }

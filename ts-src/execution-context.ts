@@ -1,5 +1,5 @@
 import Validator, {ValidationError} from 'fastest-validator';
-import {AppConfigI, appConfigSchema} from './app-config'
+import {AppConfigI, appConfigSchema} from './app-config.js'
 
 
 export interface ExecutionContextI {

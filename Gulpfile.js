@@ -1,13 +1,14 @@
-const series = require('gulp').series;
-const src = require('gulp').src;
-const gulpBase = require('@franzzemen/gulp-base').init(require('./package.json'), 100, true);
-const mocha = require('gulp-mocha');
-const {join} = require('path');
-require('@franzzemen/gulp-base').setMainBranch('main');
+import {cwd} from 'process';
+import * as gulpBase from '@franzzemen/gulp-base';
+import { createRequire } from "module";
+import {join} from 'path';
+import * as npmuFunc from '@franzzemen/npmu';
+const requireModule = createRequire(import.meta.url);
+gulpBase.init(requireModule('./package.json'), cwd() + '/tsconfig.src.json', cwd() + '/tsconfig.test.json', 100);
+gulpBase.setMainBranch('main');
 
-const npmu = require('@franzzemen/npmu').npmu;
 
-exports.npmu = (cb) => npmu([
+export const npmu  = (cb) => npmuFunc([
   {
     path: join(__dirname, '../gulp-base'), packageName: '@franzzemen/gulp-base',
   }, {
@@ -21,21 +22,16 @@ cb();
 });
 
 
-function test ()  {
-  return src('./testing/**/*.test.js').pipe(mocha());
-}
 
+export const test = gulpBase.test;
 
+export const clean = gulpBase.clean;
+export const buildTest = gulpBase.buildTest;
+export default gulpBase.default;
 
+export const patch = gulpBase.patch;
+export const minor = gulpBase.minor;
+export const major = gulpBase.major;
 
-exports.buildTest = gulpBase.buildTest;
-exports.test = test;
-
-exports.default = gulpBase.default;
-
-exports.patch = gulpBase.patch;
-exports.minor = gulpBase.minor;
-exports.major = gulpBase.major;
-
-exports.npmForceUpdateProject = gulpBase.npmForceUpdateProject;
-exports.npmUpdateProject = gulpBase.npmUpdateProject;
+export const npmForceUpdateProject = gulpBase.npmForceUpdateProject;
+export const npmUpdateProject = gulpBase.npmUpdateProject;

@@ -1,8 +1,9 @@
 {
   "name": "@franzzemen/app-utility",
-  "version": "0.2.12",
+  "version": "1.0.0",
   "description": "Basic application utilities",
   "main": "Gulpfile.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,15 +18,15 @@
   },
   "homepage": "https://github.com/franzzemen/app-utility#readme",
   "devDependencies": {
-    "@franzzemen/gulp-base": "^7.5.5",
+    "@franzzemen/gulp-base": "^10.1.6",
     "@franzzemen/npmu": "^1.2.11",
     "@franzzemen/test": "0.1.0",
     "@types/chai": "^4.3.3",
     "@types/mocha": "^9.1.1",
     "@types/moment": "^2.13.0",
-    "@types/node": "^18.7.13",
+    "@types/node": "^18.7.14",
     "chai": "^4.3.6",
-    "fastest-validator": "^1.13.0",
+    "fastest-validator": "^1.15.0",
     "gulp": "^4.0.2",
     "gulp-mocha": "^8.0.0",
     "mocha": "^10.0.0",

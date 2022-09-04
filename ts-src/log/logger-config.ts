@@ -1,5 +1,5 @@
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
-import {ModuleDefinition, moduleDefinitionSchema} from '../load-from-module';
+import {ModuleDefinition, moduleDefinitionSchema} from '../load-from-module.js';
 
 export interface LogOverrideConfigI {
   // The repo to override logging for

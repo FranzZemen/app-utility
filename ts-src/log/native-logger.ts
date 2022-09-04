@@ -1,5 +1,5 @@
-import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-constants';
-import {LoggerI} from './logger-adapter';
+import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-constants.js';
+import {LoggerI} from './logger-adapter.js';
 
 
 export class NativeLogger implements LoggerI {

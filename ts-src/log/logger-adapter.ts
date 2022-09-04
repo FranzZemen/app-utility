@@ -1,9 +1,14 @@
+import {createRequire} from 'module';
 import {inspect} from 'util';
-import {ExecutionContextI} from '../execution-context';
-import {loadFromModule} from '../load-from-module';
-import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-constants';
-import {NativeLogger} from './native-logger';
-const moment = require('moment');
+import {isPromise} from 'util/types';
+import {NativeLogger} from './native-logger.js';
+import {ExecutionContextI} from '../execution-context.js';
+import {loadFromModule} from '../load-from-module.js';
+import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-constants.js';
+
+const requireModule = createRequire(import.meta.url);
+const moment = requireModule('moment');
+const utc = moment.utc;
 
 
 /**
@@ -133,7 +138,12 @@ export class LoggerAdapter implements LoggerI {
 
     const module = this.execContext?.config?.log?.loggerModule;
     if(module && module.moduleName && (module.constructorName || module.functionName)) {
-      this.logger = loadFromModule<LoggerI>(module);
+      const impl = loadFromModule<LoggerI>(module);
+      if(isPromise(impl)) {
+        throw new Error("ESM Modules not supported");
+      } else {
+        this.logger = impl;
+      }
     } else {
       this.logger = new NativeLogger();
     }
@@ -175,13 +185,13 @@ export class LoggerAdapter implements LoggerI {
   log(logMethod: (color: string, logMessage: string) => void, data: any, message: string, color: string, cwcPrefix: string) {
     // TODO modify to support cloud watch format
     if (data && (typeof data === 'string')) {
-      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
+      const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
       logMethod(color + str + Reset,'');
     } else if(this.execContext?.config?.log?.flatten) {
-      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
+      const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset,'');
     } else {
-      const str = `${moment.utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
+      const str = `${utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset,'');
     }
 

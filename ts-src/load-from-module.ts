@@ -1,17 +1,27 @@
+import {createRequire} from 'module';
+import {ExecutionContextI} from './execution-context.js';
+import {LoggerAdapter} from './log/index.js';
 /**
  * NOTE NOTE NOTE:  By definition this needs to be in the root of the package as relative loads expect it
  * @param moduleName
  */
-declare function require<T>(moduleName: string): any;
 
-export type ModuleDefinition = {moduleName: string, functionName?: string, constructorName?: string, propertyName?:string};
+const requireModule = createRequire(import.meta.url);
+
+export enum ModuleResolution {
+  "commonjs",
+  "es"
+}
+
+export type ModuleDefinition = {moduleName: string, functionName?: string, constructorName?: string, propertyName?:string, moduleResolution?: ModuleResolution};
 
 export function isModuleDefinition(module: any | ModuleDefinition): module is ModuleDefinition {
   const moduleNameExists = 'moduleName' in module;
   const functionNameExists = 'functionName' in module;
   const constructorNameExists = 'constructorName' in module;
   const propertyNameExists = 'propertyName' in module;
-  return moduleNameExists // moduleName must always be present
+  const moduleResolutionExists = 'moduleResolution' in module;
+  return moduleNameExists  // moduleName must always be present
     && ((!functionNameExists && !constructorNameExists && !propertyNameExists) // None of the constraints are present
       ||  (functionNameExists && !(constructorNameExists || propertyNameExists)) // functionName is present but not the other two
       || (constructorNameExists && !(functionNameExists || propertyNameExists)) // constructorName is present but not the other two
@@ -46,41 +56,62 @@ export const moduleDefinitionSchema = {
   }
 }
 
-export function loadJSONResource(relativePath): Object {
+export function loadJSONResource(relativePath, ec?: ExecutionContextI): Object {
   try {
-    return require(relativePath);
+    // JSON can always be loaded dynamically with require in both commonjs and es
+    return requireModule(relativePath);
   } catch (err) {
     console.error(err);
     throw err;
   }
 }
 
-export function loadJSONFromPackage(moduleDef: ModuleDefinition): Object {
+function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object {
+  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
+  if(!moduleDef.functionName && !moduleDef.propertyName) {
+    const err = new Error('Either functionName or propertyName must be defined on moduleDef');
+    log.error(err);
+    throw err;
+  }
+  const resourceName = moduleDef.functionName?.length ? moduleDef.functionName.trim() : moduleDef.propertyName.trim();
+  const resource = module[resourceName];
+  if (resource) {
+    let jsonAsString: string;
+    if (typeof resource === 'function' && moduleDef.functionName?.length > 0) {
+      jsonAsString = resource();
+    } else if (typeof resource === 'string' && moduleDef.propertyName?.length > 0) {
+      jsonAsString = resource;
+    } else {
+      throw new Error(`Mismatch between mdoule ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
+    }
+    if (typeof jsonAsString === 'string') {
+      return JSON.parse(jsonAsString); // Throws if error
+    } else {
+      throw new Error(`Value for module ${moduleDef.moduleName}, function invocation ${moduleDef.functionName} or property ${moduleDef.propertyName} is not a string`);
+    }
+  } else {
+    throw new Error(`No function or property for module ${moduleDef.moduleName}, function ${moduleDef.functionName}, property ${moduleDef.propertyName}`);
+  }
+}
+
+export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
+  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONFromPackage');
   const functionName = moduleDef?.functionName?.trim();
   const propertyName = moduleDef?.propertyName?.trim();
   if(moduleDef?.moduleName && (functionName?.length || propertyName?.length)) {
     if(functionName?.length && propertyName?.length) {
       throw new Error(`Only one of functionName ${moduleDef.functionName} or propertyName ${moduleDef.propertyName} may be specified for module ${moduleDef.moduleName}`);
     } else {
-      let jsonAsString: string;
-      const module = require(moduleDef.moduleName);
-      const resourceName = functionName?.length ? functionName : propertyName;
-      const resource = module[resourceName];
-      if(resource) {
-        if (typeof resource === 'function' && functionName?.length > 0) {
-          jsonAsString = resource();
-        } else if(typeof resource === 'string' && propertyName?.length > 0) {
-          jsonAsString = resource;
-        } else {
-          throw new Error(`Mismatch between mdoule ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
-        }
-        if (typeof jsonAsString === 'string') {
-          return JSON.parse(jsonAsString); // Throws if error
-        } else {
-          throw new Error(`Value for module ${moduleDef.moduleName}, function invocation ${moduleDef.functionName} or property ${moduleDef.propertyName} is not a string`);
-        }
+      if(moduleDef.moduleResolution === ModuleResolution.es) {
+        log.debug('es module resolution, forcing asynchronous result');
+        return import(moduleDef.moduleName)
+          .then(module => {
+            return loadJSONPropertyFromModule (module,moduleDef, ec);
+          })
       } else {
-        throw new Error (`No function or property for module ${moduleDef.moduleName}, function ${moduleDef.functionName}, property ${moduleDef.propertyName}`);
+        log.debug('COMMONJS module resolution');
+        let module = requireModule(moduleDef.moduleName);
+        return loadJSONPropertyFromModule (module,moduleDef, ec);
       }
     }
   } else {
@@ -88,23 +119,40 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition): Object {
   }
 }
 
-export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[]): T {
-  // First check if T is a path or an installed module
-  // If it looks like an installed module, try and load it
-  // If the installed module doesn't load, or it looks like a path, load using the path.  Note that the path must be relative to the
-  // top of the rules engine package...so from here should be '../' plus the relative path from there...
-  // The package must export default a function hat returns the intended type (providing opportunities for the function implementation to  create a newNo instance etc.
+function loadInstanceFromModule<T> (module: any, moduleDef: ModuleDefinition, paramsArray?: any[], ec?: ExecutionContextI): T {
+  if (moduleDef.functionName || moduleDef.constructorName === undefined) {
+    let factoryFunction: (...params) => T;
+    const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
+    factoryFunction = module[factoryFunctionName];
+    if (factoryFunction) {
+      return factoryFunction(paramsArray);
+    }
+  } else {
+    return new module[moduleDef.constructorName](paramsArray);
+  }
+}
+
+export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], ec?: ExecutionContextI): Promise<T> | T {
+  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
   try {
-    const module = require<T>(moduleDef.moduleName);
-    if(moduleDef.functionName || moduleDef.constructorName === undefined)  {
-      let factoryFunction: (...params) => T;
-      const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
-      factoryFunction = module[factoryFunctionName];
-      if (factoryFunction) {
-        return factoryFunction(paramsArray);
-      }
+    /*
+      It is assumed this module is transpiled with resolution es (ecmascript module) although it should work if it is
+      compiled with resolution commonjs; this is because the implementation assumes a dynamic import for anything but
+      commonjs, which is consistent with both resolutions.
+     */
+    if(moduleDef.moduleResolution === ModuleResolution.es) {
+      log.debug('es module resolution, forcing asynchronous result');
+      return import(moduleDef.moduleName)
+        .then(module => {
+          return loadInstanceFromModule<T>(module, moduleDef, paramsArray, ec);
+        }, err => {
+          log.error(err);
+          throw err;
+        });
     } else {
-      return new module[moduleDef.constructorName](paramsArray);
+      log.debug('commonjs module resolution');
+      const module = requireModule(moduleDef.moduleName);
+      return loadInstanceFromModule<T>(module, moduleDef, paramsArray, ec);
     }
   } catch (err) {
     console.error (err);
