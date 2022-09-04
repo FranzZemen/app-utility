@@ -1,8 +1,9 @@
-import {AsyncCheckFunction, SyncCheckFunction, ValidationSchema} from 'fastest-validator';
+import {AsyncCheckFunction, SyncCheckFunction} from 'fastest-validator';
+import {LoadSchema} from './load-from-module.js';
 
 // Assumes schema is a Validation Schema or a Check Function!
-export function isValidationSchema(schema: any | ValidationSchema): schema is ValidationSchema {
-  return !('async' in schema);
+export function isLoadSchema(schema: any | LoadSchema): schema is LoadSchema {
+  return schema !== undefined && 'useNewCheckerFunction' in schema && 'validationSchema' in schema;
 }
 
 export type CheckFunction = AsyncCheckFunction | SyncCheckFunction;

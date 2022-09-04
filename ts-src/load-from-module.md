@@ -21,7 +21,7 @@ The Module Definition specification is:
         constructorName?: string, 
         propertyName?:string,
         moduleResolution?: string | ModuleResolution,
-        validationSchema?: ValidationSchema | JSON
+        schema?: LoadSchema | JSON
     };
 
     where:
@@ -30,7 +30,7 @@ The Module Definition specification is:
         constructorName:  The name of the factory constructor in the loaded module.  Not used for JSON files or modules providing JSON properties.
         propertyName:  The name of a JSON property in the loaded module
         moduleResolution:  The module type of the loaded module. Either 'commonjs' or 'es' or a value from the enum ModuleResolution.
-        validationSchema:  A schema to validate the loaded object, compliant with 'fastest-validator' schema 
+        validationSchema:  A schema to validate the loaded object.  Contains a validationSchema which is  compliant with the 'fastest-validator' schema and a useNewCheckerFunction which is the flag the Validator constructor property requires as to which of the checker function signatures to use
 
 Because functions, constructors and properties in the target module are accessed using the array operator [], these 
 may be nested.  For example 'myFunctions.someFactoryFunction', where myFunctions is the actual export.
@@ -43,6 +43,9 @@ import() build in method. CommonJS modules can can be imported synchronously via
 Rather than try and parse the outcome, a module resolution specification is required for ES modules to be loaded. If it
 is missing or a commonjs specification, commonjs is assumed. Thus loading from a module anything but JSON will convert
 processing to asynchronous if the target is an ES module.
+
+When using relative paths for ES modules, remember to affix the ".js" suffix to the moduleName.  For commonjs this 
+can be omitted, b6ut it is a standard for ES modules.
 
 ### Relative Paths
 Because ultimately require or import() will be used, moduleName is an installed package, a URL, an absolute path, or it

@@ -39,8 +39,6 @@ describe ('base-utility tests', () => {
         }
       };
       const log: LoggerAdapter = new LoggerAdapter(execContext);
-      log.debug('hello');
-      log.debug(execContext, 'hello2');
       done();
     });
     it('should log, hiding attributes', done => {

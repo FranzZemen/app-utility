@@ -1,9 +1,19 @@
 import chai from 'chai';
 import 'mocha';
-import {isConstrainedModuleDefinition, isModuleDefinition, loadFromModule} from '../publish/index.js';
+import {ValidationError} from 'fastest-validator';
+import {isPromise} from 'util/types';
+import {
+  isConstrainedModuleDefinition,
+  isModuleDefinition,
+  loadFromModule,
+  loadJSONResource, LoadSchema,
+  ModuleResolution
+} from '../publish/index.js';
 
 let should = chai.should();
 let expect = chai.expect;
+
+const unreachableCode = false;
 
 describe('app-utility tests', () => {
   describe('Load from module tests', () => {
@@ -50,30 +60,116 @@ describe('app-utility tests', () => {
         isConstrainedModuleDefinition(obj).should.be.true;
         done();
       });
-      it('should load via module default from bad-extended', done => {
+      it('should load via module default from commonjs bad-extended', done => {
         // Path relative to root of package, at test time this is relative to publish
-        const result = loadFromModule<any>({moduleName: '../testing/bad-extended.cjs'},undefined, undefined, undefined);
-        expect(result).to.exist;
-        done();
-      });
-      /*
-      it('should load a via module function from extended', done => {
-        const result = loadFromModule<any>({moduleName: '../testing/extended', functionName: 'create2'});
-        expect(result).to.exist;
-        done();
-      });
-      it('should load a via module constructor from extended', done => {
         const result = loadFromModule<any>({
-          moduleName: '../testing/extended',
-          constructorName: 'TestDataType'
-        });
+          moduleName: '../testing/bad-extended.cjs',
+          moduleResolution: ModuleResolution.commonjs
+        }, undefined, undefined, undefined);
         expect(result).to.exist;
         done();
       });
 
-       */
+      it('should load a via module function from es extended', () => {
+        const result = loadFromModule<any>({
+          moduleName: '../testing/extended.js',
+          functionName: 'create2',
+          moduleResolution: ModuleResolution.es
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        return result.then(res => {
+          res.name.should.equal('Test');
+        }, err => {
+          unreachableCode.should.be.true;
+        });
+      });
+      it('should load a via module constructor from es extended', () => {
+        const result = loadFromModule<any>({
+          moduleName: '../testing/extended.js',
+          constructorName: 'TestDataType',
+          moduleResolution: ModuleResolution.es
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        return result.then(res => {
+          return res.name.should.equal('Test');
+        }, err => {
+          console.error(err);
+          unreachableCode.should.be.true;
+          return err;
+        })
+          .catch(err => {
+            unreachableCode.should.be.true;
+          });
+
+      });
+      it('should load json with no schema check', done => {
+        const testJsonObj: any = loadJSONResource('../testing/test-json.json', undefined, undefined);
+        (typeof testJsonObj).should.equal('object');
+        testJsonObj.name.should.exist;
+        testJsonObj.id.should.exist;
+        done();
+      });
+      it('should load json with passing schema check', () => {
+        const schema: LoadSchema = {
+          validationSchema: {
+            name: {type: 'string'},
+            id: {type: 'number'}
+          },
+          useNewCheckerFunction: false
+        };
+        try {
+          const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+          (typeof testJsonObj).should.equal('object');
+          testJsonObj.name.should.exist;
+          testJsonObj.id.should.exist;
+        } catch (err) {
+          console.error(err);
+          unreachableCode.should.be.true;
+        }
+      });
+      it('should load json with failing schema check', () => {
+        const schema: LoadSchema = {
+          validationSchema: {
+            name: {type: 'string'},
+            id: {type: 'number'},
+            doIt: {type: 'string'}
+          },
+          useNewCheckerFunction: false
+        };
+        try {
+          const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+          unreachableCode.should.be.true;
+        } catch (err) {
+          console.error(err);
+          err.should.exist;
+        }
+      });
+      it('should load json with async schema check', () => {
+        const schema:LoadSchema = {
+          validationSchema: {
+            $$async: true,
+            name: {type: 'string'},
+            id: {type: 'number'},
+            label: {
+              type: 'string',
+              custom: async (v, errors: ValidationError[]) => {
+                if (v !== 'A') {
+                  errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
+                }
+                return v;
+              }
+            }
+          },
+          useNewCheckerFunction: true
+        };
+        const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+        isPromise(testJsonObj).should.be.true;
+        return testJsonObj.then(obj => {
+          obj.label.should.equal('A');
+        });
+      });
     });
   });
 });
-
-export const dummy = 1;

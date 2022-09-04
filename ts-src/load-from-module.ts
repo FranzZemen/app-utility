@@ -6,7 +6,7 @@ import {
   CheckFunction,
   isAsyncCheckFunction,
   isSyncCheckFunction,
-  isValidationSchema
+  isLoadSchema
 } from './fastest-validator-util.js';
 import {LoggerAdapter} from './log/index.js';
 
@@ -22,13 +22,18 @@ export enum ModuleResolution {
   'es'
 }
 
+export interface LoadSchema {
+  validationSchema: ValidationSchema;
+  useNewCheckerFunction: boolean;
+}
+
 export type ModuleDefinition = {
   moduleName: string,
   functionName?: string,
   constructorName?: string,
   propertyName?: string,
   moduleResolution?: ModuleResolution,
-  validationSchema?: ValidationSchema
+  loadSchema?: LoadSchema
 };
 
 export function isModuleDefinition(module: any | ModuleDefinition): module is ModuleDefinition {
@@ -73,13 +78,13 @@ export const moduleDefinitionSchema = {
 };
 
 
-function validateSchema<T>(def: string | ModuleDefinition, obj, check: ValidationSchema | CheckFunction, ec?: ExecutionContextI): T | Promise<T> {
+function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchema | CheckFunction, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'validationCheck');
   let validationCheck: CheckFunction;
   if(check) {
-    if (isValidationSchema(check)) {
+    if (isLoadSchema(check)) {
       // This is the least performant way by 100x...encourage user to pass a cached check function
-      validationCheck = (new Validator()).compile(check);
+      validationCheck = (new Validator({useNewCustomCheckerFunction: check.useNewCheckerFunction})).compile(check.validationSchema);
     } else {
       validationCheck = check;
     }
@@ -94,7 +99,7 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: Validatio
       if (result === true) {
         return obj;
       } else {
-        log.warn({def, schema: isValidationSchema(check) ? check : 'compiled'}, 'Sync validation failed.');
+        log.warn({def, schema: isLoadSchema(check) ? check : 'compiled'}, 'Sync validation failed.');
         const err = new Error(`Sync validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
         log.error(err);
         throw err;
@@ -106,7 +111,7 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: Validatio
           if (result === true) {
             return obj;
           } else {
-            log.warn({def, schema: isValidationSchema(check) ? check : 'compiled'}, 'Async validation failed.');
+            log.warn({def, schema: isLoadSchema(check) ? check : 'compiled'}, 'Async validation failed.');
             const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
             log.error(err);
             throw err;
@@ -121,7 +126,7 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: Validatio
   }
 }
 
-export function loadJSONResource(relativePath, check?: ValidationSchema | CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
+export function loadJSONResource(relativePath, check?: LoadSchema | CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
 
   // JSON can always be loaded dynamically with require in both commonjs and es
@@ -161,12 +166,12 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
     }
     if (typeof jsonAsString === 'string') {
       const jsonObj = JSON.parse(jsonAsString); // Always expect strings in order to protect from abuse
-      if(moduleDef.validationSchema || check) {
+      if(moduleDef.loadSchema || check) {
         // Always prefer the compiled validation
         if(check) {
           return validateSchema<any>(moduleDef, jsonObj, check, ec);
         } else {
-          return validateSchema<any>(moduleDef, jsonObj, moduleDef.validationSchema, ec);
+          return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
         }
       } else {
         return jsonObj;
@@ -219,7 +224,11 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
       }
     }
   } else {
-    t =  new module[moduleDef.constructorName](...paramsArray);
+    if(paramsArray) {
+      t = new module[moduleDef.constructorName](...paramsArray);
+    } else {
+      t = new module[moduleDef.constructorName]();
+    }
   }
   if(check) {
     return validateSchema<T>(moduleDef, t, check, ec);
