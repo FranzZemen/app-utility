@@ -226,37 +226,15 @@ export class Hints extends Map<string, string | Object> {
         functionName = match[5].trim();
       }
       jsonLoads.push({key: match[1].trim(), moduleDef: {moduleName, functionName, propertyName, moduleResolution}});
-      /*
-      let json;
-      try {
-        if(propertyName) {
-          json = loadJSONFromPackage({moduleName, propertyName, moduleResolution}, undefined, ec);
-        } else {
-          json = loadJSONFromPackage({moduleName, functionName, moduleResolution}, undefined, ec);
-        }
-
-
-        super.set(match[1], json);
-      } catch (err) {
-        const error = new Error(`Cannot load JSON from module ${moduleName} and function ${functionName} or property ${propertyName}`);
-        log.error(error);
-        log.error(err);
-        throw error;
-      }
-
-       */
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
     // Build a new string removing prior results, which are sorted in reverse index
     matchBoundaries.forEach(boundary => {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
-    // Match unary
+    // Match unary...nothing left other than that, makes reg exp easy
     nvRegex = /\b([a-z0-9]+[-a-z0-9]*[a-z0-9]+)/g;
-    // Match unary hints not followed by =, including spaces, and not preceded by an equal or an opening quote (string value)
-    // nvRegex = /\b(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))+(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*)[-a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))*(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))+/g;
-    // nvRegex2 = /\b(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?(?<!")[^"]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9]+(?![a-z0-9]*[\s\t\r\n\v\f\u2028\u2029]*=)/g;
-    // const nvRegex2 = /\b(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?[^]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9]+(?![a-z0-9]*[\s\t\r\n\v\f\u2028\u2029]*=)/g;
+
     match = undefined;
     matchBoundaries =[];
     while((match = nvRegex.exec(hintsCopy)) !== null) {

@@ -145,27 +145,36 @@ For those that want to organize JSON objects into a package, which can make sens
 project, Hints support the ability to load stringified JSON, which is then parsed.  Existing objects are not 
 supported, only text to be parsed as JSON.  The format for this mode is:
 
-    my-options=@(require:package=>functonName)
+    my-options=@(require|import:package=>functionName)
 
     where: 
+        require|import either require (for commonjs modules) or import (for es modules) must be present
         package is the package name 
         functionName is a function that takes no arguments and return stringified JSON
 
     my-options=@(require:@franzzemen/extensions=>getCustomOptions)
 
-At this time the function must be a top leve function, not accessed through a dot "." or array.
+At this time the function must be a top leve function, not accessed through a dot "." or array. The function must 
+not expect any parameters.
+
+If import is used for an es package, the processing will switch to async as dynamic es packages import can only be 
+done asynchronously.
 
 #### Node Module Loader with package/property that contains a stringified JSON
 More simply if one has a package where they store their static JSON objects, they can do so as stringified objects and 
 refer to a property on the package. At this time the property must be a top level property (i.e. not referenced via 
 a dot "." or array)
 
-    my-options=@(require:package:propertyPath)
+    my-options=@(require|import:package:propertyPath)
 
     where: 
+        require|import either require (for commonjs modules) or import (for es modules) must be present
         package is the package name 
         propertyPath is the path to the stringified JSON
 
-    my-options=@(require:@franzzemen/extensions:JSONData)       
+    my-options=@(require:@franzzemen/extensions:JSONData)   
+
+If import is used for an es package, the processing will switch to async as dynamic es packages import can only be
+done asynchronously.
 
 
