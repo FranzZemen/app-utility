@@ -1,12 +1,15 @@
 import chai from 'chai';
-import 'mocha';
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
+import 'mocha';
 import {isPromise} from 'util/types';
 import {
   isConstrainedModuleDefinition,
   isModuleDefinition,
   loadFromModule,
-  loadJSONResource, LoadSchema,
+  loadJSONFromPackage,
+  loadJSONResource,
+  LoadSchema,
+  ModuleDefinition,
   ModuleResolution
 } from '../publish/index.js';
 
@@ -225,6 +228,120 @@ describe('app-utility tests', () => {
           obj.label.should.equal('A');
         });
       });
+      it('should load a via module function from es extended with successful schema check on moduleDef', () => {
+        const schema: LoadSchema = {
+          validationSchema: {
+              name: {type: 'string'}
+          },
+          useNewCheckerFunction: true
+        }
+        const result = loadFromModule<any>({
+          moduleName: '../testing/extended.js',
+          functionName: 'create2',
+          moduleResolution: ModuleResolution.es,
+          loadSchema: schema
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        return result.then(res => {
+          res.name.should.equal('Test');
+        }, err => {
+          unreachableCode.should.be.true;
+        });
+      });
+      it('should load a via module function from es extended with unsuccessful schema check on moduleDef', () => {
+        const schema: LoadSchema = {
+          validationSchema: {
+            name: {type: 'string'},
+            dummy: {type: 'number'}
+          },
+          useNewCheckerFunction: true
+        }
+        const result = loadFromModule<any>({
+          moduleName: '../testing/extended.js',
+          functionName: 'create2',
+          moduleResolution: ModuleResolution.es,
+          loadSchema: schema
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        return result.then(res => {
+          unreachableCode.should.be.true;
+        }, err => {
+          err.should.exist;
+        });
+      });
+      it('should load a via module function from es extended, deep nested function name', () => {
+        const result = loadFromModule<any>({
+          moduleName: '../testing/extended.js',
+          functionName: 'foo.bar',
+          moduleResolution: ModuleResolution.es
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        return result.then(res => {
+          res.id.should.equal(15);
+        }, err => {
+          unreachableCode.should.be.true;
+        });
+      });
+      it ('should load jason from module property', () => {
+        const moduleDef: ModuleDefinition = {
+          moduleName: '@franzzemen/test',
+          propertyName: 'jsonStr',
+          moduleResolution: ModuleResolution.es
+        }
+        const objPromise = loadJSONFromPackage(moduleDef);
+        objPromise.should.exist;
+        if(isPromise(objPromise)) {
+          objPromise
+            .then(obj => {
+              obj['prop'].should.equal('jsonStr');
+            }, err=> {
+              unreachableCode.should.be.true;
+            })
+        } else {
+          unreachableCode.should.be.true;
+        }
+      })
+      it ('should load jason from deep nested module property', () => {
+        const moduleDef: ModuleDefinition = {
+          moduleName: '@franzzemen/test',
+          propertyName: 'nestedJsonStr.jsonStr',
+          moduleResolution: ModuleResolution.es
+        }
+        const objPromise = loadJSONFromPackage(moduleDef);
+        objPromise.should.exist;
+        if(isPromise(objPromise)) {
+          objPromise
+            .then(obj => {
+              obj['prop'].should.equal('jsonStr');
+            }, err => {
+              unreachableCode.should.be.true;
+            });
+        } else {
+          objPromise['prop'].should.equal('jsonStr');
+        }
+      })
+      it ('should load object from package', () => {
+        const moduleDef: ModuleDefinition = {
+          moduleName: '@franzzemen/test',
+          functionName:'getObj',
+          moduleResolution: ModuleResolution.es
+        }
+        const objPromise = loadFromModule(moduleDef);
+        objPromise.should.exist;
+        if (isPromise(objPromise)) {
+          objPromise
+            .then(obj => {
+              obj['name'].should.equal('test');
+            }, err => {
+              unreachableCode.should.be.true;
+            })
+        } else {
+          unreachableCode.should.be.true;
+        }
+      })
     });
   });
 });

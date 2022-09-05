@@ -1,4 +1,5 @@
 
+
 export class TestDataType {
   name: string = 'Test'
   eval (): number {
@@ -12,4 +13,15 @@ export default function create() {
 
 export function create2() {
   return new TestDataType();
+}
+
+export class BarThing {
+  id = 15;
+}
+
+export const foo = {
+  id: 1,
+  bar: () => {
+      return new BarThing();
+  }
 }

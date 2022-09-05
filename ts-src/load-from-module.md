@@ -122,5 +122,8 @@ If the loaded module is of type 'es', or if any validation is asynchronous, a Pr
 The moduleDefinition can contain a validation schema.  If check is also provided, the CheckFunction will be used
 for validation, otherwise the schema (if it is provided) will be used.
 
+The functionName of the moduleDefinition can point to a nested element of the module if the "." operator is used 
+(uses object-path syntax).  Constructors need to be a top level export.
+
 From a security perspective, providing validation (schema or CheckFunction) is recommended.  
 

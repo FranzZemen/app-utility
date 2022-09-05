@@ -1,13 +1,15 @@
+import {isPromise} from 'util/types';
 import {ExecutionContextI} from './execution-context.js';
-import {loadJSONFromPackage, loadJSONResource} from './load-from-module.js';
+import {loadJSONFromPackage, loadJSONResource, ModuleDefinition, ModuleResolution} from './load-from-module.js';
 import {LoggerAdapter} from './log/index.js';
 
 export type Fragment = {frag: string, start: number, end?: number}
 
 export class Hints extends Map<string, string | Object> {
   hintBody: string;
+  initialized = false;
 
-  static peekHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): Hints {
+  static peekHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): Hints | Promise<Hints> {
     Hints.validatePrefix(near, prefix, ec);
     return Hints.captureHints(near, prefix, ec, enclosure);
   }
@@ -29,30 +31,87 @@ export class Hints extends Map<string, string | Object> {
   }
 
 
-  static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): [string, Hints] {
+  static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): [string, Hints] | Promise<[string, Hints]> {
     const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'parseHints');
     this.validatePrefix(near, prefix, ec);
-    const hints = Hints.captureHints(near, prefix, ec, enclosure);
-    if(hints?.size > 0) {
-      let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
-      // Capture remaining
-      return [remaining, hints];
+    const hintsResult = Hints.captureHints(near, prefix, ec, enclosure);
+    if(hintsResult) {
+      if (isPromise(hintsResult)) {
+        return hintsResult
+          .then(hints => {
+            if (hints.size > 0) {
+              let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
+              // Capture remaining
+              return [remaining, hints];
+            } else {
+              return [near, hints];
+            }
+          }, err => {
+            log.error(err);
+            throw err;
+          })
+      } else {
+        if (hintsResult.size > 0) {
+          let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
+          // Capture remaining
+          return [remaining, hintsResult];
+        } else {
+          return [near, hintsResult];
+        }
+      }
     } else {
-      return [near, new Hints('')];
+      const hints = new Hints('',ec);
+      hints.loadAndInitialize(ec);
+      return [near, hints];
     }
   }
 
-  mergeInto(oHints: Hints, replace = false, ec?: ExecutionContextI)  {
-    let next;
-    let iter = oHints.keys();
-    while((next = iter.next()) && !next.done) {
-      const key = next.value;
-      if(this.has(key)) {
-        if(replace) {
-          this.set(key, oHints.get(key));
-        }
+
+
+
+  private static captureHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): Hints | Promise<Hints> {
+    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'captureHints');
+    const regExp = new RegExp(`^${enclosure.start}${prefix}([-\\s\\t\\r\\n\\v\\f\\u2028\\u2029".,=>:\(\)@\\[\\]{}/_a-zA-Z0-9]*)${enclosure.end}[^]*$`);
+    const result = regExp.exec(near);
+    if (result) {
+      const hints: Hints = new Hints(result[1].trim(), ec);
+      const initResult = hints.loadAndInitialize(ec);
+      if(isPromise(initResult)) {
+        return initResult
+          .then(() => {
+            if (prefix && prefix.trim().length > 0) {
+              hints.set(prefix, prefix);
+              hints.set('prefix', prefix);
+            }
+            log.debug(hints, `Found hints near ${near}`);
+            return hints;
+        }, err => {
+            log.error(err);
+            throw err;
+          });
       } else {
-        this.set(key, oHints.get(key));
+        if (prefix && prefix.trim().length > 0) {
+          hints.set(prefix, prefix);
+          hints.set('prefix', prefix);
+        }
+        log.debug(hints, `Found hints near ${near}`)
+        return hints;
+      }
+    } else {
+      log.debug(`Did not find hints near ${near}`);
+      const hints = new Hints('',ec);
+      hints.loadAndInitialize(ec);
+      return hints;
+    }
+  }
+
+  private static validatePrefix(near: string, prefix: string, ec?: ExecutionContextI) {
+    if (prefix) {
+      if (!/^[a-z0-9]+[-a-z0-9]*[a-z0-9]+$/.test(prefix)) {
+        const err = new Error(`Prefix must be lower case, use letters or numbers or the symbol -, but not at the start or the end.  It must be at least 2 characters long. Near ${near}`);
+        const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'validatePrefix');
+        log.error(err);
+        throw err;
       }
     }
   }
@@ -60,11 +119,17 @@ export class Hints extends Map<string, string | Object> {
   constructor(hintBody: string, ec?: ExecutionContextI) {
     super();
     const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'constructor');
-    if(!hintBody || hintBody.trim().length === 0) {
+    if (!hintBody || hintBody.trim().length === 0) {
       log.debug('No text provided to parse hints');
       return;
     }
     this.hintBody = hintBody.trim();
+  }
+
+  public loadAndInitialize(ec?: ExecutionContextI): true | Promise<true> {
+    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'init');
+    this.initialized = false;
+    super.clear();
     // Locate name, value pairs with JSON
     let nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*([\[{][^]*[}|\]])/g;
     let match = undefined;
@@ -73,7 +138,7 @@ export class Hints extends Map<string, string | Object> {
       const jsonStr = match[2].trim();
       try {
         const json = JSON.parse(jsonStr);
-        this.set(match[1], json);
+        super.set(match[1], json);
       } catch (err) {
         const error = new Error(`Cannot parse JSON hint ${jsonStr}`);
         log.error(error);
@@ -96,7 +161,7 @@ export class Hints extends Map<string, string | Object> {
       const resource = match[2].trim();
       try {
         const json = loadJSONResource(resource,undefined, ec);
-        this.set(match[1], json);
+        super.set(match[1], json);
       } catch (err) {
         const error = new Error(`Cannot load JSON from relative path ${resource}`);
         log.error(error);
@@ -110,48 +175,13 @@ export class Hints extends Map<string, string | Object> {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
 
-    // Locate name, JSON from package/functions/attributes
-    nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\(require:([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
-    match = undefined;
-    matchBoundaries =[];
-    while((match = nvRegex.exec(hintsCopy)) !== null) {
-      const moduleName = match[2].trim();
-      const attribOrFunction = match[3].trim();
-      let functionName: string, propertyName:string;
-      if(attribOrFunction === ':') {
-        propertyName = match[4].trim();
-      } else {
-        functionName = match[4].trim();
-      }
-      let json;
-      try {
-        if(propertyName) {
-          json = loadJSONFromPackage({moduleName, propertyName}, undefined, ec);
-        } else {
-          json = loadJSONFromPackage({moduleName, functionName}, undefined, ec);
-        }
-        this.set(match[1], json);
-      } catch (err) {
-        const error = new Error(`Cannot load JSON from module ${moduleName} and function ${functionName} or property ${propertyName}`);
-        log.error(error);
-        log.error(err);
-        throw error;
-      }
-      matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
-    }
-    // Build a new string removing prior results, which are sorted in reverse index
-    matchBoundaries.forEach(boundary => {
-      hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
-    });
-
-
     // Locate name, value pairs with quotes
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*"([.\/\-_a-zA-Z0-9\s\t\r\n\v\f\u2028\u2029]+)"/g;
     const fragments: Fragment[] = [];
     match = undefined;
     matchBoundaries = [];
     while((match = nvRegex.exec(hintsCopy)) !== null) {
-      this.set(match[1], match[2].trim());
+      super.set(match[1], match[2].trim());
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
     // Build a new string removing prior results, which are sorted in reverse index
@@ -164,47 +194,181 @@ export class Hints extends Map<string, string | Object> {
     match = undefined;
     matchBoundaries = [];
     while((match = nvRegex.exec(hintsCopy)) !== null) {
-      this.set(match[1], match[2]);
+      super.set(match[1], match[2]);
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
     matchBoundaries.forEach(boundary => {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
 
-    // Locate unary hints
-    nvRegex = /\b([a-z0-9]+[-a-z0-9]*[a-z0-9]+)/g;
+
+
+
+    // Locate name, JSON from package/functions/attributes. Creates an async result from loading by import (vs require for commmonjs)
+    nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\((require|import):([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
     match = undefined;
+    matchBoundaries =[];
+    let jsonLoads: {key: string, moduleDef: ModuleDefinition}[] = [];
+    let asyncLoads = false;
     while((match = nvRegex.exec(hintsCopy)) !== null) {
-      this.set(match[1], match[1]);
-    }
-  }
-  private static captureHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): Hints {
-    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'captureHints');
-    const regExp = new RegExp(`^${enclosure.start}${prefix}([-\\s\\t\\r\\n\\v\\f\\u2028\\u2029".,=>:\(\)@\\[\\]{}/_a-zA-Z0-9]*)${enclosure.end}[^]*$`);
-    const result = regExp.exec(near);
-    if (result) {
-      const hints = new Hints(result[1].trim(), ec);
-      if(prefix && prefix.trim().length > 0) {
-        hints.set(prefix, prefix);
-        hints.set('prefix', prefix);
+      const importStatement = match[2].trim();
+      let moduleResolution = ModuleResolution.commonjs;
+      if(importStatement === 'import') {
+        moduleResolution = ModuleResolution.es;
+        asyncLoads = true;
       }
-      log.debug(hints, `Found hints near ${near}`)
-      return hints;
+      const moduleName = match[3].trim();
+      const attribOrFunction = match[4].trim();
+      let functionName: string, propertyName:string;
+      if(attribOrFunction === ':') {
+        propertyName = match[5].trim();
+      } else {
+        functionName = match[5].trim();
+      }
+      jsonLoads.push({key: match[1].trim(), moduleDef: {moduleName, functionName, propertyName, moduleResolution}});
+      /*
+      let json;
+      try {
+        if(propertyName) {
+          json = loadJSONFromPackage({moduleName, propertyName, moduleResolution}, undefined, ec);
+        } else {
+          json = loadJSONFromPackage({moduleName, functionName, moduleResolution}, undefined, ec);
+        }
+
+
+        super.set(match[1], json);
+      } catch (err) {
+        const error = new Error(`Cannot load JSON from module ${moduleName} and function ${functionName} or property ${propertyName}`);
+        log.error(error);
+        log.error(err);
+        throw error;
+      }
+
+       */
+      matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
+    }
+    // Build a new string removing prior results, which are sorted in reverse index
+    matchBoundaries.forEach(boundary => {
+      hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
+    });
+    // Match unary
+    nvRegex = /\b([a-z0-9]+[-a-z0-9]*[a-z0-9]+)/g;
+    // Match unary hints not followed by =, including spaces, and not preceded by an equal or an opening quote (string value)
+    // nvRegex = /\b(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))+(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*)[-a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))*(?:(?<!=[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9](?![\s\t\r\n\v\f\u2028\u2029]*=))+/g;
+    // nvRegex2 = /\b(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?(?<!")[^"]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9]+(?![a-z0-9]*[\s\t\r\n\v\f\u2028\u2029]*=)/g;
+    // const nvRegex2 = /\b(?<!=[\s\t\r\n\v\f\u2028\u2029]*"?[^]*"?[\s\t\r\n\v\f\u2028\u2029]*)[a-z0-9]+(?![a-z0-9]*[\s\t\r\n\v\f\u2028\u2029]*=)/g;
+    match = undefined;
+    matchBoundaries =[];
+    while((match = nvRegex.exec(hintsCopy)) !== null) {
+      super.set(match[0], match[0]);
+      matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
+    }
+    matchBoundaries.forEach(boundary => {
+      hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
+    });
+
+    if(asyncLoads) {
+      const promises: (Object | Promise<Object>)[] = [];
+      jsonLoads.forEach(load => {
+        try {
+          promises.push(loadJSONFromPackage(load.moduleDef, undefined, ec));
+        } catch (err) {
+          const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
+          log.error(error);
+          log.error(err);
+          throw error;
+        }
+      });
+      return Promise.allSettled(promises)
+        .then(values => {
+          let hasErrors = false;
+          for(let i = 0; i < values.length; i++) {
+            const result = values[i];
+            if(result.status === 'fulfilled') {
+              const key = jsonLoads[i].key;
+              super.set(key, result.value);
+            } else {
+              log.warn(result.reason, `Cannot load JSON from module ${jsonLoads[i].moduleDef.moduleName} and function ${jsonLoads[i].moduleDef.functionName} or property ${jsonLoads[i].moduleDef.propertyName}`);
+              const err = new Error(result.reason);
+              log.error(err);
+              hasErrors = true;
+            }
+          }
+          if(hasErrors) {
+            throw new Error('One or more load JSON from module failed');
+          }
+          this.initialized = true;
+          return true;
+        }, err => {
+          log.error(err);
+          throw(err);
+        });
     } else {
-      log.debug(`Did not find hints near ${near}`);
-      return new Hints('');
+      jsonLoads.forEach(load => {
+        try {
+          let jsonObj: Object  = loadJSONFromPackage(load.moduleDef, undefined, ec);
+          this.set(load.key, jsonObj);
+        } catch (err) {
+          const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
+          log.error(error);
+          log.error(err);
+          throw error;
+        }
+      });
+      this.initialized = true;
+      return true;
     }
   }
 
-  private static validatePrefix(near: string, prefix: string, ec?: ExecutionContextI) {
-    if (prefix) {
-      if (!/^[a-z0-9]+[-a-z0-9]*[a-z0-9]+$/.test(prefix)) {
-        const err = new Error(`Prefix must be lower case, use letters or numbers or the symbol -, but not at the start or the end.  It must be at least 2 characters long. Near ${near}`);
-        const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'validatePrefix');
-        log.error(err);
-        throw err;
+  mergeInto(oHints: Hints, replace = false, ec?: ExecutionContextI)  {
+    this.checkInit();
+    let next;
+    let iter = oHints.keys();
+    while((next = iter.next()) && !next.done) {
+      const key = next.value;
+      if(this.has(key)) {
+        if(replace) {
+          this.set(key, oHints.get(key));
+        }
+      } else {
+        this.set(key, oHints.get(key));
       }
     }
+  }
+
+  checkInit(ec?: ExecutionContextI) {
+    if(!this.initialized) {
+      const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'checkInit');
+      const err = new Error('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
+      log.error(err);
+      throw err;
+    }
+  }
+
+
+  clear(ec?: ExecutionContextI) {
+    this.checkInit(ec);
+    super.clear();
+  }
+
+  delete(key: string,ec?: ExecutionContextI): boolean {
+    this.checkInit(ec);
+    return super.delete(key);
+  }
+
+  get(key: string, ec?: ExecutionContextI): string | Object | undefined {
+    this.checkInit(ec);
+    return super.get(key);
+  }
+
+  has(key: string, ec?: ExecutionContextI): boolean {
+    this.checkInit(ec);
+    return super.has(key);
+  }
+
+  set(key: string, value: string | Object, ec?:ExecutionContextI): this {
+    this.checkInit(ec);
+    return super.set(key, value);
   }
 }
 // Case 1:  Nothing precedes or follows

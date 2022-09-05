@@ -10,16 +10,13 @@ import {
 } from './fastest-validator-util.js';
 import {LoggerAdapter} from './log/index.js';
 
-/**
- * NOTE NOTE NOTE:  By definition this needs to be in the root of the package as relative loads expect it
- * @param moduleName
- */
 
 const requireModule = createRequire(import.meta.url);
+const objectPath = requireModule('object-path');
 
 export enum ModuleResolution {
-  'commonjs',
-  'es'
+  commonjs = 'commonjs',
+  es = 'es'
 }
 
 export interface LoadSchema {
@@ -114,7 +111,7 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
             log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Async validation failed.');
             const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
             log.error(err);
-            throw err;
+            throw err;  ``
           }
         }, err => {
           log.error(err);
@@ -154,7 +151,8 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
     throw err;
   }
   const resourceName = moduleDef.functionName?.length ? moduleDef.functionName.trim() : moduleDef.propertyName.trim();
-  const resource = module[resourceName];
+  const resource = objectPath.get(module, resourceName);
+  // const resource = module[resourceName];
   if (resource) {
     let jsonAsString: string;
     if (typeof resource === 'function' && moduleDef.functionName?.length > 0) {
@@ -162,7 +160,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
     } else if (typeof resource === 'string' && moduleDef.propertyName?.length > 0) {
       jsonAsString = resource;
     } else {
-      throw new Error(`Mismatch between mdoule ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
+      throw new Error(`Mismatch between module ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
     }
     if (typeof jsonAsString === 'string') {
       const jsonObj = JSON.parse(jsonAsString); // Always expect strings in order to protect from abuse
@@ -215,7 +213,8 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
   if (moduleDef.functionName || moduleDef.constructorName === undefined) {
     let factoryFunction: (...params) => T;
     const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
-    factoryFunction = module[factoryFunctionName];
+    factoryFunction = objectPath.get(module, factoryFunctionName);
+    //factoryFunction = module[factoryFunctionName];
     if (factoryFunction) {
       if(paramsArray) {
         t = factoryFunction(...paramsArray);
@@ -224,14 +223,17 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
       }
     }
   } else {
+    const constructorFunction = objectPath.get(module, moduleDef.constructorName);
     if(paramsArray) {
-      t = new module[moduleDef.constructorName](...paramsArray);
+      t = new constructorFunction(...paramsArray);
+      //t = new module[moduleDef.constructorName](...paramsArray);
     } else {
-      t = new module[moduleDef.constructorName]();
+      t = new constructorFunction();
+      //t = new module[moduleDef.constructorName]();
     }
   }
-  if(check) {
-    return validateSchema<T>(moduleDef, t, check, ec);
+  if(check || moduleDef.loadSchema) {
+    return validateSchema<T>(moduleDef, t, check ? check : moduleDef.loadSchema, ec);
   } else {
     return t;
   }
