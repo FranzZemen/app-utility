@@ -342,6 +342,26 @@ describe('app-utility tests', () => {
           unreachableCode.should.be.true;
         }
       })
+      it ('should load object from package with factory function parameters', () => {
+        const moduleDef: ModuleDefinition = {
+          moduleName: '@franzzemen/test',
+          functionName:'getObjWithParameters',
+          moduleResolution: ModuleResolution.es
+        }
+        const objPromise = loadFromModule(moduleDef, ['year', 1999]);
+        objPromise.should.exist;
+        if (isPromise(objPromise)) {
+          objPromise
+            .then(obj => {
+              obj['label'].should.equal('year');
+              obj['id'].should.equal(1999);
+            }, err => {
+              unreachableCode.should.be.true;
+            })
+        } else {
+          unreachableCode.should.be.true;
+        }
+      })
     });
   });
 });

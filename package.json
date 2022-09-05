@@ -1,6 +1,6 @@
 {
   "name": "@franzzemen/app-utility",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Basic application utilities",
   "main": "Gulpfile.js",
   "type": "module",
@@ -20,7 +20,7 @@
   "devDependencies": {
     "@franzzemen/gulp-base": "^10.1.6",
     "@franzzemen/npmu": "^1.2.11",
-    "@franzzemen/test": "1.0.2",
+    "@franzzemen/test": "1.0.3",
     "@types/chai": "^4.3.3",
     "@types/mocha": "^9.1.1",
     "@types/moment": "^2.13.0",
