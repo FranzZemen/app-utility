@@ -24,7 +24,7 @@ export class Hints extends Map<string, string | Object> {
       return remaining;
     } else {
       const err = new Error('Should never get here [no remaining]');
-      const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'consumeHints');
+      const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'consumeHints');
       log.error(err);
       throw err;
     }
@@ -32,7 +32,7 @@ export class Hints extends Map<string, string | Object> {
 
 
   static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): [string, Hints] | Promise<[string, Hints]> {
-    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'parseHints');
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'parseHints');
     this.validatePrefix(near, prefix, ec);
     const hintsResult = Hints.captureHints(near, prefix, ec, enclosure);
     if(hintsResult) {
@@ -70,7 +70,7 @@ export class Hints extends Map<string, string | Object> {
 
 
   private static captureHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): Hints | Promise<Hints> {
-    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'captureHints');
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'captureHints');
     const regExp = new RegExp(`^${enclosure.start}${prefix}([-\\s\\t\\r\\n\\v\\f\\u2028\\u2029".,=>:\(\)@\\[\\]{}/_a-zA-Z0-9]*)${enclosure.end}[^]*$`);
     const result = regExp.exec(near);
     if (result) {
@@ -109,7 +109,7 @@ export class Hints extends Map<string, string | Object> {
     if (prefix) {
       if (!/^[a-z0-9]+[-a-z0-9]*[a-z0-9]+$/.test(prefix)) {
         const err = new Error(`Prefix must be lower case, use letters or numbers or the symbol -, but not at the start or the end.  It must be at least 2 characters long. Near ${near}`);
-        const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'validatePrefix');
+        const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'validatePrefix');
         log.error(err);
         throw err;
       }
@@ -118,7 +118,7 @@ export class Hints extends Map<string, string | Object> {
 
   constructor(hintBody: string, ec?: ExecutionContextI) {
     super();
-    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'constructor');
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'constructor');
     if (!hintBody || hintBody.trim().length === 0) {
       log.debug('No text provided to parse hints');
       return;
@@ -127,7 +127,7 @@ export class Hints extends Map<string, string | Object> {
   }
 
   public loadAndInitialize(ec?: ExecutionContextI): true | Promise<true> {
-    const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'init');
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'init');
     this.initialized = false;
     super.clear();
     // Locate name, value pairs with JSON
@@ -316,7 +316,7 @@ export class Hints extends Map<string, string | Object> {
 
   checkInit(ec?: ExecutionContextI) {
     if(!this.initialized) {
-      const log = new LoggerAdapter(ec, 'base-utility', 'hints', 'checkInit');
+      const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'checkInit');
       const err = new Error('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
       log.error(err);
       throw err;
