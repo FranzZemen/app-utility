@@ -9,6 +9,7 @@ import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-consta
 const requireModule = createRequire(import.meta.url);
 const moment = requireModule('moment');
 const utc = moment.utc;
+const Moment = moment.Moment;
 
 
 /**
