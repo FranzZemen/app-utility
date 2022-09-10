@@ -1,6 +1,6 @@
 import Validator, {ValidationError, ValidationSchema, SyncCheckFunction, AsyncCheckFunction} from 'fastest-validator';
 import {createRequire} from 'node:module';
-import {isPromise} from 'util/types';
+
 import {ExecutionContextI} from './execution-context.js';
 import {
   CheckFunction,
@@ -24,14 +24,63 @@ export interface LoadSchema {
   useNewCheckerFunction: boolean;
 }
 
+export class TypeOf extends Set<string> {
+  static String = new TypeOf('string');
+  static Number = new TypeOf('number');
+  static Boolean = new TypeOf('boolean');
+  static BigInt = new TypeOf('bigint');
+  static Function = new TypeOf('function');
+  static Symbol = new TypeOf('symbol');
+  static Object = new TypeOf('object');
+
+  private _typeOf: string;
+
+  get typeOf() : string {
+    return this._typeOf;
+  }
+
+  private constructor(typeOf: string) {
+    super();
+    super.add('string');
+    super.add('number');
+    super.add('boolean');
+    super.add('bigint');
+    super.add('function');
+    super.add('symbol');
+    super.add('object');
+    if(this.has(typeOf)) {
+      this._typeOf = typeOf;
+    } else {
+      throw new Error('Attempt to initialize TypeOf with value not compatible with operator "typeof"');
+    }
+  }
+
+  add(value: string): this {
+    throw new Error('TypeOf implementation of Set is immutable');
+  }
+
+  clear() {
+    throw new Error('TypeOf implementation of Set is immutable');
+  }
+
+  delete(value: string): boolean {
+    throw new Error('TypeOf implementation of Set is immutable');
+  }
+}
+
+export function  isTypeOf(typeOf: any | TypeOf): typeOf is TypeOf {
+  return typeOf instanceof TypeOf;
+}
+
 export type ModuleDefinition = {
   moduleName: string,
   functionName?: string,
   constructorName?: string,
   propertyName?: string,
   moduleResolution?: ModuleResolution,
-  loadSchema?: LoadSchema
+  loadSchema?: LoadSchema | TypeOf,
 };
+
 
 export function isModuleDefinition(module: any | ModuleDefinition): module is ModuleDefinition {
   const moduleNameExists = 'moduleName' in module;
@@ -74,49 +123,75 @@ export const moduleDefinitionSchema = {
   }
 };
 
-
-function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchema | CheckFunction, ec?: ExecutionContextI): T | Promise<T> {
+/**
+ *
+ * @param def
+ * @param obj
+ * @param check If LoadSchema or Check Function, that's used to validate the loaded object's contents.
+ * If TypeOf, this validates the Object itself using the typeof operator.
+ * @param ec
+ */
+function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchema | CheckFunction | TypeOf, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'validationCheck');
   let validationCheck: CheckFunction;
   if(check) {
-    if (isLoadSchema(check)) {
-      // This is the least performant way by 100x...encourage user to pass a cached check function
-      validationCheck = (new Validator({useNewCustomCheckerFunction: check.useNewCheckerFunction})).compile(check.validationSchema);
-    } else {
-      validationCheck = check;
-    }
-    if (isSyncCheckFunction(validationCheck)) {
-      let result: true | ValidationError[];
-      try {
-        result = validationCheck(obj);
-      } catch (err) {
-        log.error(err);
-        throw err;
-      }
-      if (result === true) {
+    if(isTypeOf(check)) {
+      if (typeof obj === check.typeOf) {
         return obj;
       } else {
-        log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Sync validation failed.');
-        const err = new Error(`Sync validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
+        const result: ValidationError[] = [{actual: typeof obj, expected: check.typeOf, field: 'n/a', message: `returned instance failed 'typeof instance === "${check.typeOf}"'`, type: 'n/a'}];
+        log.warn({def, schema: 'TypeOf', obj, result}, 'TypeOf validation failed.');
+        const err = new Error (`TypeOf validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
         log.error(err);
         throw err;
       }
-    } else if (isAsyncCheckFunction(validationCheck)) {
-      const resultPromise: Promise<true | ValidationError[]> = validationCheck(obj);
-      return resultPromise
-        .then(result => {
-          if (result === true) {
-            return obj;
-          } else {
-            log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Async validation failed.');
-            const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
-            log.error(err);
-            throw err;  ``
-          }
-        }, err => {
+    }
+    else {
+      if (isLoadSchema(check)) {
+        // This is the least performant way by 100x...encourage user to pass a cached check function
+        validationCheck = (new Validator({useNewCustomCheckerFunction: check.useNewCheckerFunction})).compile(check.validationSchema);
+      } else {
+        validationCheck = check;
+      }
+      if (isSyncCheckFunction(validationCheck)) {
+        let result: true | ValidationError[];
+        try {
+          result = validationCheck(obj);
+        } catch (err) {
           log.error(err);
           throw err;
-        });
+        }
+        if (result === true) {
+          return obj;
+        } else {
+          log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Sync validation failed.');
+          const err = new Error(`Sync validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
+          log.error(err);
+          throw err;
+        }
+      } else if (isAsyncCheckFunction(validationCheck)) {
+        const resultPromise: Promise<true | ValidationError[]> = validationCheck(obj);
+        return resultPromise
+          .then(result => {
+            if (result === true) {
+              return obj;
+            } else {
+              log.warn({
+                def,
+                schema: isLoadSchema(check) ? check : 'compiled',
+                obj,
+                result
+              }, 'Async validation failed.');
+              const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
+              log.error(err);
+              throw err;
+              ``
+            }
+          }, err => {
+            log.error(err);
+            throw err;
+          });
+      }
     }
   } else {
     return obj;
@@ -208,7 +283,7 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
   }
 }
 
-function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction, ec?: ExecutionContextI, validationSchema?: ValidationSchema): Promise<T> | T {
+function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction | TypeOf, ec?: ExecutionContextI, validationSchema?: ValidationSchema): Promise<T> | T {
   let t: T;
   if (moduleDef.functionName || moduleDef.constructorName === undefined) {
     let factoryFunction: (...params) => T;
@@ -239,7 +314,7 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
   }
 }
 
-export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction, ec?: ExecutionContextI): Promise<T> | T {
+export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction | TypeOf, ec?: ExecutionContextI): Promise<T> | T {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
   try {
     /*

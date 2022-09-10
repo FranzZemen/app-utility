@@ -25,3 +25,8 @@ export const foo = {
       return new BarThing();
   }
 }
+
+
+export function createString() {
+  return 'hello world';
+}

@@ -1,9 +1,8 @@
 import {AsyncCheckFunction, SyncCheckFunction} from 'fastest-validator';
 import {LoadSchema} from './load-from-module.js';
 
-// Assumes schema is a Validation Schema or a Check Function!
 export function isLoadSchema(schema: any | LoadSchema): schema is LoadSchema {
-  return schema !== undefined && 'useNewCheckerFunction' in schema && 'validationSchema' in schema;
+  return typeof schema === 'object' && schema !== undefined && 'useNewCheckerFunction' in schema && 'validationSchema' in schema;
 }
 
 export type CheckFunction = AsyncCheckFunction | SyncCheckFunction;

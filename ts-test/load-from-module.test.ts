@@ -10,7 +10,7 @@ import {
   loadJSONResource,
   LoadSchema,
   ModuleDefinition,
-  ModuleResolution
+  ModuleResolution, TypeOf
 } from '../publish/index.js';
 
 let should = chai.should();
@@ -362,6 +362,43 @@ describe('app-utility tests', () => {
           unreachableCode.should.be.true;
         }
       })
+      it('should load a via module function from es extended with successful TypeOf check', () => {
+        const result = loadFromModule<string>({
+          moduleName: '../testing/extended.js',
+          functionName: 'createString',
+          moduleResolution: ModuleResolution.es
+        }, undefined, TypeOf.String, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        if(isPromise(result)) {
+          return result.then(res => {
+            expect(res).to.equal('hello world');
+            return;
+          }, err => {
+            console.error(err);
+            unreachableCode.should.be.true;
+          });
+        }
+      });
+      it('should load a via module function from es extended with unsuccessful TypeOf check', () => {
+
+        const result = loadFromModule<string>({
+          moduleName: '../testing/extended.js',
+          functionName: 'createString',
+          moduleResolution: ModuleResolution.es
+        }, undefined, TypeOf.Number, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        if(isPromise(result)) {
+          return result.then(res => {
+            unreachableCode.should.be.true;
+            return;
+          }, err => {
+            err.should.exist;
+            err.message.startsWith('TypeOf').should.be.true;
+          });
+        }
+      });
     });
   });
 });
