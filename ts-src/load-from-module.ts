@@ -1,4 +1,5 @@
 import Validator, {ValidationError, ValidationSchema, SyncCheckFunction, AsyncCheckFunction} from 'fastest-validator';
+import {symlink} from 'fs';
 import {createRequire} from 'node:module';
 
 import {ExecutionContextI} from './execution-context.js';
@@ -9,7 +10,6 @@ import {
   isLoadSchema
 } from './fastest-validator-util.js';
 import {LoggerAdapter} from './log/index.js';
-
 
 const requireModule = createRequire(import.meta.url);
 const objectPath = requireModule('object-path');
