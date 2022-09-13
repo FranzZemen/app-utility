@@ -3,6 +3,7 @@ import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import 'mocha';
 import {isPromise} from 'util/types';
 import {
+  ExecutionContextI,
   isConstrainedModuleDefinition,
   isModuleDefinition,
   loadFromModule,
@@ -63,16 +64,28 @@ describe('app-utility tests', () => {
         isConstrainedModuleDefinition(obj).should.be.true;
         done();
       });
-      it('should load via module default from commonjs bad-extended', done => {
-        // Path relative to root of package, at test time this is relative to publish
-        const result = loadFromModule<any>({
-          moduleName: '../testing/bad-extended.cjs',
-          moduleResolution: ModuleResolution.commonjs
-        }, undefined, undefined, undefined);
-        expect(result).to.exist;
-        done();
+      it('should fail to load via module default from commonjs bad-extended with no function or constructor name', () => {
+        try {
+          const result = loadFromModule<any>({
+            moduleName: '../testing/bad-extended.cjs',
+            moduleResolution: ModuleResolution.commonjs
+          }, undefined, undefined, undefined);
+          unreachableCode.should.be.true;
+        } catch (err) {
+          err.should.exist;
+        }
       });
-
+      it('should load via module default from commonjs bad-extended with no function or constructor name, using default for function name', () => {
+        try {
+          const result = loadFromModule<any>({
+            moduleName: '../testing/bad-extended.cjs',
+            moduleResolution: ModuleResolution.commonjs
+          }, undefined, undefined, undefined);
+          result.should.exist;
+        } catch (err) {
+          unreachableCode.should.be.true;
+        }
+      });
       it('should load a via module function from es extended', () => {
         const result = loadFromModule<any>({
           moduleName: '../testing/extended.js',
@@ -436,6 +449,70 @@ describe('app-utility tests', () => {
             err.should.exist;
             err.message.startsWith('TypeOf').should.be.true;
           });
+        }
+      });
+      it('should load a via module function returning a promise from es extended number 49', () => {
+        const result = loadFromModule<string>({
+          moduleName: '../testing/extended.js',
+          functionName: 'createNumber',
+          moduleResolution: ModuleResolution.es,
+          loadSchema: TypeOf.Number
+        }, undefined, undefined, undefined);
+        expect(result).to.exist;
+        isPromise(result).should.be.true;
+        if(isPromise(result)) {
+          return result.then(res => {
+            res.should.equal(49)
+            return;
+          }, err => {
+            unreachableCode.should.be.true;
+          });
+        }
+      });
+      it('should fail load a via module function from es extended with throwOnAsync = true', () => {
+        try {
+          const ec: ExecutionContextI = {throwOnAsync: true};
+          const result = loadFromModule<string>({
+            moduleName: '../testing/extended.js',
+            functionName: 'createString',
+            moduleResolution: ModuleResolution.es,
+            loadSchema: TypeOf.Number
+          }, undefined, undefined, ec);
+          unreachableCode.should.be.true;
+        } catch (err) {
+          err.should.exist;
+        }
+      });
+      it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
+        try {
+          const result = loadFromModule<any>({
+            moduleName: '../testing/bad-extended.cjs',
+            moduleResolution: ModuleResolution.commonjs,
+            functionName: 'createAsyncFunc'
+          }, undefined, undefined, undefined);
+          if(isPromise(result)) {
+            return result
+              .then(someResult => {
+                someResult.should.equal(50);
+              })
+          } else {
+            unreachableCode.should.be.true;
+          }
+        } catch (err) {
+          unreachableCode.should.be.true;
+        }
+      })
+      it('should not load promise via module default from commonjs bad-extended, for function name createAsyncFunc, with throwOnAsync true', () => {
+        try {
+          const ec: ExecutionContextI = {throwOnAsync: true};
+          const result = loadFromModule<any>({
+            moduleName: '../testing/bad-extended.cjs',
+            moduleResolution: ModuleResolution.commonjs,
+            functionName: 'createAsyncFunc'
+          }, undefined, undefined, ec);
+          unreachableCode.should.be.true;
+        } catch (err) {
+          err.should.exist;
         }
       });
     });

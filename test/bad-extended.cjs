@@ -1,4 +1,5 @@
 
+
 class BadDataType {
   name;
   bar () {
@@ -8,4 +9,8 @@ class BadDataType {
 
 exports.default = function create() {
   return new BadDataType();
+}
+
+exports.createAsyncFunc = function createAsyncFunc() {
+  return Promise.resolve(50);
 }

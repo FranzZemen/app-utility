@@ -30,3 +30,7 @@ export const foo = {
 export function createString() {
   return 'hello world';
 }
+
+export function createNumber(): Promise<number> {
+  return Promise.resolve(49);
+}

@@ -1,14 +1,9 @@
-import Validator, {ValidationError, ValidationSchema, SyncCheckFunction, AsyncCheckFunction} from 'fastest-validator';
-import {symlink} from 'fs';
+import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {createRequire} from 'node:module';
+import {isPromise} from 'util/types';
 
 import {ExecutionContextI} from './execution-context.js';
-import {
-  CheckFunction,
-  isAsyncCheckFunction,
-  isSyncCheckFunction,
-  isLoadSchema
-} from './fastest-validator-util.js';
+import {CheckFunction, isAsyncCheckFunction, isLoadSchema, isSyncCheckFunction} from './fastest-validator-util.js';
 import {LoggerAdapter} from './log/index.js';
 
 const requireModule = createRequire(import.meta.url);
@@ -33,12 +28,6 @@ export class TypeOf extends Set<string> {
   static Symbol = new TypeOf('symbol');
   static Object = new TypeOf('object');
 
-  private _typeOf: string;
-
-  get typeOf() : string {
-    return this._typeOf;
-  }
-
   private constructor(typeOf: string) {
     super();
     super.add('string');
@@ -48,11 +37,17 @@ export class TypeOf extends Set<string> {
     super.add('function');
     super.add('symbol');
     super.add('object');
-    if(this.has(typeOf)) {
+    if (this.has(typeOf)) {
       this._typeOf = typeOf;
     } else {
       throw new Error('Attempt to initialize TypeOf with value not compatible with operator "typeof"');
     }
+  }
+
+  private _typeOf: string;
+
+  get typeOf(): string {
+    return this._typeOf;
   }
 
   add(value: string): this {
@@ -68,7 +63,7 @@ export class TypeOf extends Set<string> {
   }
 }
 
-export function  isTypeOf(typeOf: any | TypeOf): typeOf is TypeOf {
+export function isTypeOf(typeOf: any | TypeOf): typeOf is TypeOf {
   return typeOf instanceof TypeOf;
 }
 
@@ -134,19 +129,24 @@ export const moduleDefinitionSchema = {
 function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchema | CheckFunction | TypeOf, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'validationCheck');
   let validationCheck: CheckFunction;
-  if(check) {
-    if(isTypeOf(check)) {
+  if (check) {
+    if (isTypeOf(check)) {
       if (typeof obj === check.typeOf) {
         return obj;
       } else {
-        const result: ValidationError[] = [{actual: typeof obj, expected: check.typeOf, field: 'n/a', message: `returned instance failed 'typeof instance === "${check.typeOf}"'`, type: 'n/a'}];
+        const result: ValidationError[] = [{
+          actual: typeof obj,
+          expected: check.typeOf,
+          field: 'n/a',
+          message: `returned instance failed 'typeof instance === "${check.typeOf}"'`,
+          type: 'n/a'
+        }];
         log.warn({def, schema: 'TypeOf', obj, result}, 'TypeOf validation failed.');
-        const err = new Error (`TypeOf validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
+        const err = new Error(`TypeOf validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
         log.error(err);
         throw err;
       }
-    }
-    else {
+    } else {
       if (isLoadSchema(check)) {
         // This is the least performant way by 100x...encourage user to pass a cached check function
         validationCheck = (new Validator({useNewCustomCheckerFunction: check.useNewCheckerFunction})).compile(check.validationSchema);
@@ -170,6 +170,12 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
           throw err;
         }
       } else if (isAsyncCheckFunction(validationCheck)) {
+        if (ec?.throwOnAsync === true) {
+          const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'validateSchema');
+          const err = `Execution context throwOnAsync is true. Validation results in an async validation check`;
+          log.error(err);
+          throw new Error(err);
+        }
         const resultPromise: Promise<true | ValidationError[]> = validationCheck(obj);
         return resultPromise
           .then(result => {
@@ -185,7 +191,6 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
               const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
               log.error(err);
               throw err;
-              ``
             }
           }, err => {
             log.error(err);
@@ -200,7 +205,6 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
 
 export function loadJSONResource(relativePath, check?: LoadSchema | CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
-
   // JSON can always be loaded dynamically with require in both commonjs and es
   const maybeJSON = requireModule(relativePath);
   if (maybeJSON) {
@@ -214,46 +218,123 @@ export function loadJSONResource(relativePath, check?: LoadSchema | CheckFunctio
     }
     return validateSchema<any>(relativePath, jsonObject, check, ec);
   } else {
-    throw new Error(`module path ${relativePath} resolves to undefined`);
+    const err = new Error(`${relativePath} does not point to a JSON string`);
+    log.error(err);
+    throw (err);
   }
 }
 
 function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, check?: CheckFunction, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
-  if (!moduleDef.functionName && !moduleDef.propertyName) {
+  if (moduleDef.functionName) {
+    const resource = objectPath.get(module, moduleDef.functionName);
+    if (typeof resource === 'function') {
+      const jsonAsStringOrPromise = resource();
+      if (isPromise(jsonAsStringOrPromise)) {
+        if (ec?.throwOnAsync === true) {
+          const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
+          const err = `Execution context throwOnAsync is true. Function ${moduleDef.functionName} returns a Promise, which forces async processing.`;
+          log.warn(moduleDef, err);
+          log.error(err);
+          throw new Error(err);
+        }
+        jsonAsStringOrPromise
+          .then(jsonAsString => {
+            if (typeof jsonAsString === 'string') {
+              const jsonObj = JSON.parse(jsonAsString);
+              if (moduleDef.loadSchema || check) {
+                // Always prefer the compiled validation
+                if (check) {
+                  return validateSchema<any>(moduleDef, jsonObj, check, ec);
+                } else {
+                  return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
+                }
+              } else {
+                return jsonObj;
+              }
+            } else {
+              const err = new Error(`module function ${moduleDef.moduleName}.${moduleDef.functionName} does not return a Promise for a string`);
+              log.error(err);
+              throw (err);
+            }
+          });
+      } else {
+        if (typeof jsonAsStringOrPromise === 'string') {
+          const jsonObj = JSON.parse(jsonAsStringOrPromise);
+          if (moduleDef.loadSchema || check) {
+            // Always prefer the compiled validation
+            if (check) {
+              return validateSchema<any>(moduleDef, jsonObj, check, ec);
+            } else {
+              return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
+            }
+          } else {
+            return jsonObj;
+          }
+        } else {
+          const err = new Error(`module function ${moduleDef.moduleName}.${moduleDef.functionName} does not return a string`);
+          log.error(err);
+          throw (err);
+        }
+      }
+    } else {
+      const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.functionName} does not point to a function`);
+      log.error(err);
+      throw (err);
+    }
+  } else if (moduleDef.propertyName) {
+    const resource = objectPath.get(module, moduleDef.propertyName);
+    if (isPromise(resource)) {
+      if (ec?.throwOnAsync === true) {
+        const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
+        const err = `Execution context throwOnAsync is true. Property ${moduleDef.propertyName} is a p\Promise, which forces async processing.`;
+        log.warn(moduleDef, err);
+        log.error(err);
+        throw new Error(err);
+      }
+      resource
+        .then((jsonAsString: string) => {
+          if (typeof jsonAsString === 'string') {
+            const jsonObj = JSON.parse(jsonAsString);
+            if (moduleDef.loadSchema || check) {
+              // Always prefer the compiled validation
+              if (check) {
+                return validateSchema<any>(moduleDef, jsonObj, check, ec);
+              } else {
+                return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
+              }
+            } else {
+              return jsonObj;
+            }
+          } else {
+            const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.propertyName} does not point to a Promise for a string`);
+            log.error(err);
+            throw (err);
+          }
+        });
+    } else {
+      if (typeof resource === 'string') {
+        const jsonObj = JSON.parse(resource);
+        if (moduleDef.loadSchema || check) {
+          // Always prefer the compiled validation
+          if (check) {
+            return validateSchema<any>(moduleDef, jsonObj, check, ec);
+          } else {
+            return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
+          }
+        } else {
+          return jsonObj;
+        }
+      } else {
+        const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.propertyName} does not point to a string`);
+        log.error(err);
+        throw (err);
+      }
+    }
+  } else {
     const err = new Error('Either functionName or propertyName must be defined on moduleDef');
     log.error(err);
     throw err;
-  }
-  const resourceName = moduleDef.functionName?.length ? moduleDef.functionName.trim() : moduleDef.propertyName.trim();
-  const resource = objectPath.get(module, resourceName);
-  // const resource = module[resourceName];
-  if (resource) {
-    let jsonAsString: string;
-    if (typeof resource === 'function' && moduleDef.functionName?.length > 0) {
-      jsonAsString = resource();
-    } else if (typeof resource === 'string' && moduleDef.propertyName?.length > 0) {
-      jsonAsString = resource;
-    } else {
-      throw new Error(`Mismatch between module ${moduleDef.moduleName} resource type and function ${moduleDef.functionName} or property ${moduleDef.functionName}.  It is possible that a property was specified for a function or vice versa, or the module doesn't support the request`);
-    }
-    if (typeof jsonAsString === 'string') {
-      const jsonObj = JSON.parse(jsonAsString); // Always expect strings in order to protect from abuse
-      if(moduleDef.loadSchema || check) {
-        // Always prefer the compiled validation
-        if(check) {
-          return validateSchema<any>(moduleDef, jsonObj, check, ec);
-        } else {
-          return validateSchema<any>(moduleDef, jsonObj, moduleDef.loadSchema, ec);
-        }
-      } else {
-        return jsonObj;
-      }
-    } else {
-      throw new Error(`Value for module ${moduleDef.moduleName}, function invocation ${moduleDef.functionName} or property ${moduleDef.propertyName} is not a string`);
-    }
-  } else {
-    throw new Error(`No function or property for module ${moduleDef.moduleName}, function ${moduleDef.functionName}, property ${moduleDef.propertyName}`);
   }
 }
 
@@ -266,6 +347,11 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
       throw new Error(`Only one of functionName ${moduleDef.functionName} or propertyName ${moduleDef.propertyName} may be specified for module ${moduleDef.moduleName}`);
     } else {
       if (moduleDef.moduleResolution === ModuleResolution.es) {
+        if (ec?.throwOnAsync === true) {
+          const err = `Execution context throwOnAsync is true.  ModuleResolution for this module is ES, which will force a dynamic import and thus async processing.`;
+          log.warn(moduleDef, err);
+          throw new Error(err);
+        }
         log.debug('es module resolution, forcing asynchronous result');
         return import(moduleDef.moduleName)
           .then(module => {
@@ -285,37 +371,79 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
 
 function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction | TypeOf, ec?: ExecutionContextI, validationSchema?: ValidationSchema): Promise<T> | T {
   let t: T;
-  if (moduleDef.functionName || moduleDef.constructorName === undefined) {
+  let factoryFunctionName = moduleDef.functionName;
+  if(!factoryFunctionName && !moduleDef.constructorName) {
+    factoryFunctionName = 'default';
+  }
+  if (factoryFunctionName) {
     let factoryFunction: (...params) => T;
-    const factoryFunctionName = moduleDef.functionName ? moduleDef.functionName : 'default';
     factoryFunction = objectPath.get(module, factoryFunctionName);
-    //factoryFunction = module[factoryFunctionName];
     if (factoryFunction) {
-      if(paramsArray) {
+      // Note:  Factory functions can be asynchronous
+      if (paramsArray) {
         t = factoryFunction(...paramsArray);
       } else {
         t = factoryFunction();
       }
-    }
-  } else {
-    const constructorFunction = objectPath.get(module, moduleDef.constructorName);
-    if(paramsArray) {
-      t = new constructorFunction(...paramsArray);
-      //t = new module[moduleDef.constructorName](...paramsArray);
+      // Factory function can return a promise
+      if (isPromise(t)) {
+        if (ec?.throwOnAsync === true) {
+          const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
+          const err = `Execution context throwOnAsync is true.  Factory function returns a Promise, which forces async processing.`;
+          log.warn(moduleDef, err);
+          log.error(err);
+          throw new Error(err);
+        }
+        return t
+          .then((tt: T) => {
+            if (check || moduleDef.loadSchema) {
+              return validateSchema<T>(moduleDef, tt, check ? check : moduleDef.loadSchema, ec);
+            } else {
+              return tt;
+            }
+          });
+      } else if (check || moduleDef.loadSchema) {
+        return validateSchema<T>(moduleDef, t, check ? check : moduleDef.loadSchema, ec);
+      } else {
+        return t;
+      }
     } else {
-      t = new constructorFunction();
-      //t = new module[moduleDef.constructorName]();
+      const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
+      const err = new Error(`moduleDef.functionName ${moduleDef.functionName} provided but does not resolve to a function`);
+      log.error(err);
+      throw err;
     }
-  }
-  if(check || moduleDef.loadSchema) {
-    return validateSchema<T>(moduleDef, t, check ? check : moduleDef.loadSchema, ec);
+  } else if (moduleDef.constructorName) {
+    // Note: Constructor functions cannot be asynchronous
+    const constructorFunction = objectPath.get(module, moduleDef.constructorName);
+    if (constructorFunction) {
+      if (paramsArray) {
+        t = new constructorFunction(...paramsArray);
+      } else {
+        t = new constructorFunction();
+      }
+      // Constructor never returns a promise
+      if (check || moduleDef.loadSchema) {
+        return validateSchema<T>(moduleDef, t, check ? check : moduleDef.loadSchema, ec);
+      } else {
+        return t;
+      }
+    } else {
+      const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
+      const err = new Error(`moduleDef.constructorName ${moduleDef.constructorName} provided but does not resolve to a constructor`);
+      log.error(err);
+      throw err;
+    }
   } else {
-    return t;
+    const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
+    const err = new Error(`Neither functionName nor constructorName provided`);
+    log.error(err);
+    throw err;
   }
 }
 
 export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any[], check?: CheckFunction | TypeOf, ec?: ExecutionContextI): Promise<T> | T {
-  const log = new LoggerAdapter(undefined, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
+  const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
   try {
     /*
       It is assumed this module is transpiled with resolution es (ecmascript module) although it should work if it is
@@ -323,6 +451,11 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
       commonjs, which is consistent with both resolutions.
      */
     if (moduleDef.moduleResolution === ModuleResolution.es) {
+      if (ec?.throwOnAsync === true) {
+        const err = `Execution context throwOnAsync is true.  ModuleResolution for this module is ES, which will force a dynamic import and thus async processing.`;
+        log.warn(moduleDef, err);
+        throw new Error(err);
+      }
       log.debug('es module resolution, forcing asynchronous result');
       return import(moduleDef.moduleName)
         .then(module => {
@@ -334,10 +467,16 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
     } else {
       log.debug('commonjs module resolution');
       const module = requireModule(moduleDef.moduleName);
+      if(!module) {
+        const err = new Error(`No module for ${moduleDef.moduleName}`);
+        log.error(err);
+        throw err;
+      }
       return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
     }
   } catch (err) {
-    console.error(err);
+    log.error(err);
     throw err;
   }
 }
+
