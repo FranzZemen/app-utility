@@ -1,6 +1,7 @@
 import {createRequire} from 'module';
 import {inspect} from 'util';
 import {isPromise} from 'util/types';
+import {logErrorAndThrow} from '../enhanced-error.js';
 import {NativeLogger} from './native-logger.js';
 import {ExecutionContextI} from '../execution-context.js';
 import {loadFromModule} from '../load-from-module.js';
@@ -17,9 +18,13 @@ const Moment = moment.Moment;
  */
 export interface LoggerI {
   error(err, ...params);
+
   warn(data, message?: string, ...params);
+
   info(data, message?: string, ...params);
+
   debug(data, message?: string, ...params);
+
   trace(data, message?: string, ...params);
 }
 
@@ -57,8 +62,10 @@ export class LoggerAdapter implements LoggerI {
 
   private logger: LoggerI;
 
-  constructor(private execContext?: ExecutionContextI, public repo = '', public sourceFile = '',  public _method = '') {
-    if(!this.execContext) {
+  private pendingEsLoad = false;
+
+  constructor(private execContext?: ExecutionContextI, public repo = '', public sourceFile = '', public _method = '', loggerImpl?: undefined) {
+    if (!this.execContext) {
       this.execContext = {
         config: {
           log: {
@@ -73,9 +80,9 @@ export class LoggerAdapter implements LoggerI {
             }
           }
         }
-      }
+      };
     }
-    if(!this.execContext.config) {
+    if (!this.execContext.config) {
       this.execContext.config = {
         log: {
           logAttributes: {
@@ -88,9 +95,9 @@ export class LoggerAdapter implements LoggerI {
             hideRequestId: true
           }
         }
-      }
+      };
     }
-    if(!this.execContext.config.log) {
+    if (!this.execContext.config.log) {
       this.execContext.config.log = {
         logAttributes: {
           hideAppContext: true,
@@ -101,18 +108,18 @@ export class LoggerAdapter implements LoggerI {
           hideLevel: true,
           hideRequestId: true
         }
-      }
+      };
     }
-    if(!this.execContext.config.log.logAttributes) {
+    if (!this.execContext.config.log.logAttributes) {
       this.execContext.config.log.logAttributes = {
-          hideAppContext: true,
-          hideRepo: true,
-          hideSourceFile: true,
-          hideMethod: true,
-          hideThread: true,
-          hideLevel: true,
-          hideRequestId: true
-      }
+        hideAppContext: true,
+        hideRepo: true,
+        hideSourceFile: true,
+        hideMethod: true,
+        hideThread: true,
+        hideLevel: true,
+        hideRequestId: true
+      };
     }
     if (this.execContext.config.log.level) {
       this.level = LoggerAdapter.levels.indexOf(this.execContext.config.log.level);
@@ -128,25 +135,38 @@ export class LoggerAdapter implements LoggerI {
     this.initializeOverrides();
 
     const logAttributes = this.execContext.config.log.logAttributes;
-      this.attributesAsString = ''
-        + (logAttributes.hideAppContext === false ? '; appContext: ' + this.execContext?.appContext : '')
-        + (logAttributes.hideRepo === false ? '; repo: ' + this.repo: '')
-        + (logAttributes.hideSourceFile === false ?'; sourceFile: ' + this.sourceFile: '')
-        + (logAttributes.hideMethod === false ? '; method: ' + this._method: '')
-        + (logAttributes.hideThread === false ? '; thread: ' + this.execContext?.thread: '')
-        + (logAttributes.hideRequestId === false ? '; requestId: ' + this.execContext?.requestId: '')
-        + (logAttributes.hideLevel === false ? '; logLevel: ' + LoggerAdapter.levels[this.level]: '');
+    this.attributesAsString = ''
+      + (logAttributes.hideAppContext === false ? '; appContext: ' + this.execContext?.appContext : '')
+      + (logAttributes.hideRepo === false ? '; repo: ' + this.repo : '')
+      + (logAttributes.hideSourceFile === false ? '; sourceFile: ' + this.sourceFile : '')
+      + (logAttributes.hideMethod === false ? '; method: ' + this._method : '')
+      + (logAttributes.hideThread === false ? '; thread: ' + this.execContext?.thread : '')
+      + (logAttributes.hideRequestId === false ? '; requestId: ' + this.execContext?.requestId : '')
+      + (logAttributes.hideLevel === false ? '; logLevel: ' + LoggerAdapter.levels[this.level] : '');
 
-    const module = this.execContext?.config?.log?.loggerModule;
-    if(module && module.moduleName && (module.constructorName || module.functionName)) {
-      const impl = loadFromModule<LoggerI>(module);
-      if(isPromise(impl)) {
-        throw new Error("ESM Modules not supported");
-      } else {
-        this.logger = impl;
-      }
+    if(loggerImpl) {
+      this.logger = loggerImpl;
     } else {
-      this.logger = new NativeLogger();
+      const module = this.execContext?.config?.log?.loggerModule;
+      if (module && module.moduleName && (module.constructorName || module.functionName)) {
+        const impl = loadFromModule<LoggerI>(module);
+        if (isPromise(impl)) {
+          this.pendingEsLoad = true;
+          this.logger = new NativeLogger();
+          this.logger.warn(this.execContext?.config.log?.loggerModule, 'Detected ES module as logger implementation, using native logger until it loads');
+          // Not returning promise.  When it's done, we switch loggers.
+          impl
+            .then(logger => {
+              this.logger.warn('ES module as logger implementation loaded dynamically');
+              this.logger = logger;
+              this.pendingEsLoad = false;
+            });
+        } else {
+          this.logger = impl;
+        }
+      } else {
+        this.logger = new NativeLogger();
+      }
     }
   }
 
@@ -156,7 +176,7 @@ export class LoggerAdapter implements LoggerI {
   }
 
   error(err, stacktrace?: any, color: string = FgRed) {
-    this.logger.error(err, stacktrace, color)
+    this.logger.error(err, stacktrace, color);
   }
 
   warn(data, message?: string, color: string = FgYellow) {
@@ -187,13 +207,13 @@ export class LoggerAdapter implements LoggerI {
     // TODO modify to support cloud watch format
     if (data && (typeof data === 'string')) {
       const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
-      logMethod(color + str + Reset,'');
-    } else if(this.execContext?.config?.log?.flatten) {
+      logMethod(color + str + Reset, '');
+    } else if (this.execContext?.config?.log?.flatten) {
       const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
-      logMethod(color + str + Reset,'');
+      logMethod(color + str + Reset, '');
     } else {
       const str = `${utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
-      logMethod(color + str + Reset,'');
+      logMethod(color + str + Reset, '');
     }
 
   }
@@ -275,28 +295,28 @@ export class LoggerAdapter implements LoggerI {
 
   private getLogObject(data, message?: string): any {
     let logObject = {};
-    if(message) {
-      logObject['message']= message;
+    if (message) {
+      logObject['message'] = message;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideAppContext && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideAppContext && !this.execContext?.config?.log?.flatten) {
       logObject['appContext'] = this.execContext?.appContext;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideRepo && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideRepo && !this.execContext?.config?.log?.flatten) {
       logObject['repo'] = this.repo;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideSourceFile && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideSourceFile && !this.execContext?.config?.log?.flatten) {
       logObject['sourceFile'] = this.sourceFile;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideMethod && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideMethod && !this.execContext?.config?.log?.flatten) {
       logObject['method'] = this._method;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideThread && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideThread && !this.execContext?.config?.log?.flatten) {
       logObject['thread'] = this.execContext?.thread;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideRequestId && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideRequestId && !this.execContext?.config?.log?.flatten) {
       logObject['requestid'] = this.execContext?.requestId;
     }
-    if(!this.execContext?.config?.log?.logAttributes?.hideLevel && !this.execContext?.config?.log?.flatten) {
+    if (!this.execContext?.config?.log?.logAttributes?.hideLevel && !this.execContext?.config?.log?.flatten) {
       logObject['logLevel'] = LoggerAdapter.levels[this.level];
     }
     logObject['data'] = data;
