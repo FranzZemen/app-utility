@@ -37,6 +37,14 @@ describe('app-utility tests', () => {
           }
         }
       })
+      it('Should get super.message', () => {
+        const err = new EnhancedError('Hello World');
+        err.message.should.equal('Hello World');
+      })
+      it('Should get contained error message', () => {
+        const err = new EnhancedError('Hello World', new Error('Goodbye'));
+        err.message.should.equal('Goodbye');
+      })
     })
   })
 })

@@ -30,12 +30,19 @@ export function logErrorAndThrow(err: Error, log?: LoggerAdapter, ec?: Execution
 
 export class EnhancedError extends Error {
   isOriginalError = true;
-  constructor(message?: string, public err: Error = undefined, public isLogged = false) {
-    super(message);
+
+  /**
+   * @param message If it wraps an error, message is ignored in favor of the wrapped error message
+   * @param err
+   * @param isLogged
+   */
+  constructor(message?: string, protected err: Error = undefined, public isLogged = false) {
+    super(err ? err.message : message);
     if(err) {
       this.isOriginalError = false;
     }
   }
+
 
   toString(): string {
     if(this.err) {
