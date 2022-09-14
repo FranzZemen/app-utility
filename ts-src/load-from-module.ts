@@ -1,6 +1,7 @@
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {createRequire} from 'node:module';
 import {isPromise} from 'util/types';
+import {EnhancedError, logErrorAndThrow} from './enhanced-error.js';
 
 import {ExecutionContextI} from './execution-context.js';
 import {CheckFunction, isAsyncCheckFunction, isLoadSchema, isSyncCheckFunction} from './fastest-validator-util.js';
@@ -28,7 +29,7 @@ export class TypeOf extends Set<string> {
   static Symbol = new TypeOf('symbol');
   static Object = new TypeOf('object');
 
-  private constructor(typeOf: string) {
+  private constructor(typeOf: string, ec?: ExecutionContextI) {
     super();
     super.add('string');
     super.add('number');
@@ -40,7 +41,7 @@ export class TypeOf extends Set<string> {
     if (this.has(typeOf)) {
       this._typeOf = typeOf;
     } else {
-      throw new Error('Attempt to initialize TypeOf with value not compatible with operator "typeof"');
+      logErrorAndThrow(new EnhancedError('Attempt to initialize TypeOf with value not compatible with operator "typeof"'), new LoggerAdapter(ec, 'app-utility', 'load-from-module', 'TypeOf constructor'), ec);
     }
   }
 
@@ -142,9 +143,8 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
           type: 'n/a'
         }];
         log.warn({def, schema: 'TypeOf', obj, result}, 'TypeOf validation failed.');
-        const err = new Error(`TypeOf validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
-        log.error(err);
-        throw err;
+        const err = new EnhancedError(`TypeOf validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
+        logErrorAndThrow(err, log, ec);
       }
     } else {
       if (isLoadSchema(check)) {
@@ -158,23 +158,20 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
         try {
           result = validationCheck(obj);
         } catch (err) {
-          log.error(err);
-          throw err;
+          logErrorAndThrow(err, log, ec);
         }
         if (result === true) {
           return obj;
         } else {
           log.warn({def, schema: isLoadSchema(check) ? check : 'compiled', obj, result}, 'Sync validation failed.');
           const err = new Error(`Sync validation failed for ${typeof def === 'string' ? def : def.moduleName}`);
-          log.error(err);
-          throw err;
+          logErrorAndThrow(err, log, ec);
         }
       } else if (isAsyncCheckFunction(validationCheck)) {
         if (ec?.throwOnAsync === true) {
           const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'validateSchema');
-          const err = `Execution context throwOnAsync is true. Validation results in an async validation check`;
-          log.error(err);
-          throw new Error(err);
+          const err = new Error(`Execution context throwOnAsync is true. Validation results in an async validation check`);
+          logErrorAndThrow(err, log, ec);
         }
         const resultPromise: Promise<true | ValidationError[]> = validationCheck(obj);
         return resultPromise
@@ -189,12 +186,8 @@ function validateSchema<T>(def: string | ModuleDefinition, obj, check: LoadSchem
                 result
               }, 'Async validation failed.');
               const err = new Error(`Async failed for ${typeof def === 'string' ? def : def.moduleName}`);
-              log.error(err);
-              throw err;
+              logErrorAndThrow(err, log, ec);
             }
-          }, err => {
-            log.error(err);
-            throw err;
           });
       }
     }
@@ -213,14 +206,12 @@ export function loadJSONResource(relativePath, check?: LoadSchema | CheckFunctio
     try {
       jsonObject = JSON.parse(JSON.stringify(maybeJSON));
     } catch (err) {
-      log.error(err);
-      throw err;
+      logErrorAndThrow(err, log, ec);
     }
     return validateSchema<any>(relativePath, jsonObject, check, ec);
   } else {
     const err = new Error(`${relativePath} does not point to a JSON string`);
-    log.error(err);
-    throw (err);
+    logErrorAndThrow(err, log, ec);
   }
 }
 
@@ -233,10 +224,9 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
       if (isPromise(jsonAsStringOrPromise)) {
         if (ec?.throwOnAsync === true) {
           const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
-          const err = `Execution context throwOnAsync is true. Function ${moduleDef.functionName} returns a Promise, which forces async processing.`;
-          log.warn(moduleDef, err);
-          log.error(err);
-          throw new Error(err);
+          const err = new Error(`Execution context throwOnAsync is true. Function ${moduleDef.functionName} returns a Promise, which forces async processing.`);
+          log.warn(moduleDef, err.message);
+          logErrorAndThrow(err, log, ec);
         }
         jsonAsStringOrPromise
           .then(jsonAsString => {
@@ -254,8 +244,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
               }
             } else {
               const err = new Error(`module function ${moduleDef.moduleName}.${moduleDef.functionName} does not return a Promise for a string`);
-              log.error(err);
-              throw (err);
+              logErrorAndThrow(err, log, ec);
             }
           });
       } else {
@@ -273,14 +262,12 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
           }
         } else {
           const err = new Error(`module function ${moduleDef.moduleName}.${moduleDef.functionName} does not return a string`);
-          log.error(err);
-          throw (err);
+          logErrorAndThrow(err, log, ec);
         }
       }
     } else {
       const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.functionName} does not point to a function`);
-      log.error(err);
-      throw (err);
+      logErrorAndThrow(err, log, ec);
     }
   } else if (moduleDef.propertyName) {
     const resource = objectPath.get(module, moduleDef.propertyName);
@@ -289,8 +276,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
         const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
         const err = `Execution context throwOnAsync is true. Property ${moduleDef.propertyName} is a p\Promise, which forces async processing.`;
         log.warn(moduleDef, err);
-        log.error(err);
-        throw new Error(err);
+        logErrorAndThrow(new Error(err), log, ec);
       }
       resource
         .then((jsonAsString: string) => {
@@ -308,8 +294,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
             }
           } else {
             const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.propertyName} does not point to a Promise for a string`);
-            log.error(err);
-            throw (err);
+            logErrorAndThrow(err, log, ec);
           }
         });
     } else {
@@ -327,14 +312,12 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ch
         }
       } else {
         const err = new Error(`module property ${moduleDef.moduleName}.${moduleDef.propertyName} does not point to a string`);
-        log.error(err);
-        throw (err);
+        logErrorAndThrow(err, log, ec);
       }
     }
   } else {
     const err = new Error('Either functionName or propertyName must be defined on moduleDef');
-    log.error(err);
-    throw err;
+    logErrorAndThrow(err, log, ec);
   }
 }
 
@@ -344,13 +327,13 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
   const propertyName = moduleDef?.propertyName?.trim();
   if (moduleDef?.moduleName && (functionName?.length || propertyName?.length)) {
     if (functionName?.length && propertyName?.length) {
-      throw new Error(`Only one of functionName ${moduleDef.functionName} or propertyName ${moduleDef.propertyName} may be specified for module ${moduleDef.moduleName}`);
+      logErrorAndThrow(new Error(`Only one of functionName ${moduleDef.functionName} or propertyName ${moduleDef.propertyName} may be specified for module ${moduleDef.moduleName}`), log, ec);
     } else {
       if (moduleDef.moduleResolution === ModuleResolution.es) {
         if (ec?.throwOnAsync === true) {
           const err = `Execution context throwOnAsync is true.  ModuleResolution for this module is ES, which will force a dynamic import and thus async processing.`;
           log.warn(moduleDef, err);
-          throw new Error(err);
+          logErrorAndThrow(new Error(err), log, ec);
         }
         log.debug('es module resolution, forcing asynchronous result');
         return import(moduleDef.moduleName)
@@ -365,7 +348,7 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
       }
     }
   } else {
-    throw new Error(`moduleName [${moduleDef?.moduleName}] and either functionName [${moduleDef?.functionName}] or propertyName [${moduleDef.propertyName}] are required`);
+    logErrorAndThrow(new Error(`moduleName [${moduleDef?.moduleName}] and either functionName [${moduleDef?.functionName}] or propertyName [${moduleDef.propertyName}] are required`), log, ec);
   }
 }
 
@@ -391,8 +374,7 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
           const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
           const err = `Execution context throwOnAsync is true.  Factory function returns a Promise, which forces async processing.`;
           log.warn(moduleDef, err);
-          log.error(err);
-          throw new Error(err);
+          logErrorAndThrow(new Error(err), log, ec);
         }
         return t
           .then((tt: T) => {
@@ -410,8 +392,7 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
     } else {
       const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
       const err = new Error(`moduleDef.functionName ${moduleDef.functionName} provided but does not resolve to a function`);
-      log.error(err);
-      throw err;
+      logErrorAndThrow(err, log, ec);
     }
   } else if (moduleDef.constructorName) {
     // Note: Constructor functions cannot be asynchronous
@@ -431,14 +412,12 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, par
     } else {
       const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
       const err = new Error(`moduleDef.constructorName ${moduleDef.constructorName} provided but does not resolve to a constructor`);
-      log.error(err);
-      throw err;
+      logErrorAndThrow(err, log, ec);
     }
   } else {
     const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadInstanceFromModule');
     const err = new Error(`Neither functionName nor constructorName provided`);
-    log.error(err);
-    throw err;
+    logErrorAndThrow(err, log, ec);
   }
 }
 
@@ -454,29 +433,24 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
       if (ec?.throwOnAsync === true) {
         const err = `Execution context throwOnAsync is true.  ModuleResolution for this module is ES, which will force a dynamic import and thus async processing.`;
         log.warn(moduleDef, err);
-        throw new Error(err);
+        logErrorAndThrow(new EnhancedError(err), log, ec);
       }
       log.debug('es module resolution, forcing asynchronous result');
       return import(moduleDef.moduleName)
         .then(module => {
           return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
-        }, err => {
-          log.error(err);
-          throw err;
         });
     } else {
       log.debug('commonjs module resolution');
       const module = requireModule(moduleDef.moduleName);
       if(!module) {
         const err = new Error(`No module for ${moduleDef.moduleName}`);
-        log.error(err);
-        throw err;
+        logErrorAndThrow(err, log, ec);
       }
       return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
     }
   } catch (err) {
-    log.error(err);
-    throw err;
+    logErrorAndThrow(err, log, ec);
   }
 }
 

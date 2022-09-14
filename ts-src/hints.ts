@@ -1,4 +1,5 @@
 import {isPromise} from 'util/types';
+import {EnhancedError, logErrorAndThrow} from './enhanced-error.js';
 import {ExecutionContextI} from './execution-context.js';
 import {loadJSONFromPackage, loadJSONResource, ModuleDefinition, ModuleResolution} from './load-from-module.js';
 import {LoggerAdapter} from './log/index.js';
@@ -25,8 +26,7 @@ export class Hints extends Map<string, string | Object> {
     } else {
       const err = new Error('Should never get here [no remaining]');
       const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'consumeHints');
-      log.error(err);
-      throw err;
+      logErrorAndThrow(err, log, ec);
     }
   }
 
@@ -46,9 +46,6 @@ export class Hints extends Map<string, string | Object> {
             } else {
               return [near, hints];
             }
-          }, err => {
-            log.error(err);
-            throw err;
           })
       } else {
         if (hintsResult.size > 0) {
@@ -85,10 +82,7 @@ export class Hints extends Map<string, string | Object> {
             }
             log.debug(hints, `Found hints near ${near}`);
             return hints;
-        }, err => {
-            log.error(err);
-            throw err;
-          });
+        });
       } else {
         if (prefix && prefix.trim().length > 0) {
           hints.set(prefix, prefix);
@@ -108,10 +102,9 @@ export class Hints extends Map<string, string | Object> {
   private static validatePrefix(near: string, prefix: string, ec?: ExecutionContextI) {
     if (prefix) {
       if (!/^[a-z0-9]+[-a-z0-9]*[a-z0-9]+$/.test(prefix)) {
-        const err = new Error(`Prefix must be lower case, use letters or numbers or the symbol -, but not at the start or the end.  It must be at least 2 characters long. Near ${near}`);
+        const err = new EnhancedError(`Prefix must be lower case, use letters or numbers or the symbol -, but not at the start or the end.  It must be at least 2 characters long. Near ${near}`);
         const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'validatePrefix');
-        log.error(err);
-        throw err;
+        logErrorAndThrow(err, log, ec);
       }
     }
   }
@@ -140,10 +133,9 @@ export class Hints extends Map<string, string | Object> {
         const json = JSON.parse(jsonStr);
         super.set(match[1], json);
       } catch (err) {
-        const error = new Error(`Cannot parse JSON hint ${jsonStr}`);
-        log.error(error);
+        const error = new EnhancedError(`Cannot parse JSON hint ${jsonStr}`);
         log.error(err);
-        throw error;
+        logErrorAndThrow(error, log, ec);
       }
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
@@ -164,9 +156,8 @@ export class Hints extends Map<string, string | Object> {
         super.set(match[1], json);
       } catch (err) {
         const error = new Error(`Cannot load JSON from relative path ${resource}`);
-        log.error(error);
         log.error(err);
-        throw error;
+        logErrorAndThrow(error, log, ec);
       }
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
@@ -200,9 +191,6 @@ export class Hints extends Map<string, string | Object> {
     matchBoundaries.forEach(boundary => {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
-
-
-
 
     // Locate name, JSON from package/functions/attributes. Creates an async result from loading by import (vs require for commmonjs)
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\((require|import):([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
@@ -252,9 +240,8 @@ export class Hints extends Map<string, string | Object> {
           promises.push(loadJSONFromPackage(load.moduleDef, undefined, ec));
         } catch (err) {
           const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
-          log.error(error);
           log.error(err);
-          throw error;
+          logErrorAndThrow(error, log, ec);
         }
       });
       return Promise.allSettled(promises)
@@ -273,13 +260,10 @@ export class Hints extends Map<string, string | Object> {
             }
           }
           if(hasErrors) {
-            throw new Error('One or more load JSON from module failed');
+            logErrorAndThrow(new EnhancedError('One or more load JSON from module failed'), log, ec);
           }
           this.initialized = true;
           return true;
-        }, err => {
-          log.error(err);
-          throw(err);
         });
     } else {
       jsonLoads.forEach(load => {
@@ -287,10 +271,8 @@ export class Hints extends Map<string, string | Object> {
           let jsonObj: Object  = loadJSONFromPackage(load.moduleDef, undefined, ec);
           this.set(load.key, jsonObj);
         } catch (err) {
-          const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
-          log.error(error);
-          log.error(err);
-          throw error;
+          const error = new EnhancedError(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`, err);
+          logErrorAndThrow(error, log, ec);
         }
       });
       this.initialized = true;
@@ -317,9 +299,8 @@ export class Hints extends Map<string, string | Object> {
   checkInit(ec?: ExecutionContextI) {
     if(!this.initialized) {
       const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'checkInit');
-      const err = new Error('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
-      log.error(err);
-      throw err;
+      const err = new EnhancedError('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
+      logErrorAndThrow(err, log, ec);
     }
   }
 
