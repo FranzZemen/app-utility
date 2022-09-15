@@ -1,7 +1,7 @@
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {createRequire} from 'node:module';
 import {isPromise} from 'util/types';
-import {EnhancedError, logErrorAndThrow} from './enhanced-error.js';
+import {EnhancedError, logErrorAndReturn, logErrorAndThrow} from './enhanced-error.js';
 
 import {ExecutionContextI} from './execution-context.js';
 import {CheckFunction, isAsyncCheckFunction, isLoadSchema, isSyncCheckFunction} from './fastest-validator-util.js';
@@ -339,6 +339,8 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, check?: CheckFu
         return import(moduleDef.moduleName)
           .then(module => {
             return loadJSONPropertyFromModule(module, moduleDef, check, ec);
+          }, err => {
+            throw logErrorAndReturn(err, log, ec);
           });
       } else {
         log.debug('COMMONJS module resolution');
@@ -439,6 +441,8 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, paramsArray?: any
       return import(moduleDef.moduleName)
         .then(module => {
           return loadInstanceFromModule<T>(module, moduleDef, paramsArray, check, ec);
+        }, err => {
+          throw logErrorAndReturn(err, log, ec);
         });
     } else {
       log.debug('commonjs module resolution');

@@ -28,6 +28,39 @@ export function logErrorAndThrow(err: Error, log?: LoggerAdapter, ec?: Execution
   }
 }
 
+/**
+ * Useful for handling Promise errors ( throw logErrorAndReturn(err, log, ec);
+ * @param err
+ * @param log
+ * @param ec
+ */
+export function logErrorAndReturn(err: Error, log?: LoggerAdapter, ec?: ExecutionContextI) {
+  if(err instanceof EnhancedError) {
+    if(err.isLogged) {
+      return err;
+    } else {
+      err.isLogged = true;
+      if(log) {
+        log.error(err);
+      } else {
+        const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
+        log.warn('No logger provided, using default');
+        log.error(err);
+      }
+      return err;
+    }
+  } else {
+    if(log) {
+      log.error(err);
+    } else {
+      const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
+      log.warn('No logger provided, using default');
+      log.error(err);
+    }
+    return new EnhancedError('Wrapped', err, true);
+  }
+}
+
 export class EnhancedError extends Error {
   isOriginalError = true;
 
