@@ -112,7 +112,7 @@ export class Hints extends Map<string, string | Object> {
   constructor(hintBody: string, ec?: ExecutionContextI) {
     super();
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'constructor');
-    if (!hintBody) {
+    if (hintBody === undefined) {
       logErrorAndThrow(new EnhancedError('Undefined hint body'));
     }
     this.hintBody = hintBody.trim();
