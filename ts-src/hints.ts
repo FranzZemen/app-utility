@@ -31,38 +31,13 @@ export class Hints extends Map<string, string | Object> {
   }
 
 
-  static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): [string, Hints] | Promise<[string, Hints]> {
+  static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {start: '<<', end: '>>'}): [string, Hints | Promise<Hints>] {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'parseHints');
     this.validatePrefix(near, prefix, ec);
     const hintsResult = Hints.captureHints(near, prefix, ec, enclosure);
-    if(hintsResult) {
-      if (isPromise(hintsResult)) {
-        return hintsResult
-          .then(hints => {
-            if (hints.size > 0) {
-              let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
-              // Capture remaining
-              return [remaining, hints];
-            } else {
-              return [near, hints];
-            }
-          })
-      } else {
-        if (hintsResult.size > 0) {
-          let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
-          // Capture remaining
-          return [remaining, hintsResult];
-        } else {
-          return [near, hintsResult];
-        }
-      }
-    } else {
-      const hints = new Hints('',ec);
-      hints.loadAndInitialize(ec);
-      return [near, hints];
-    }
+    let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
+    return [remaining, hintsResult];
   }
-
 
 
 
@@ -118,7 +93,7 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  public loadAndInitialize(ec?: ExecutionContextI): true | Promise<true> {
+  public loadAndInitialize(ec?: ExecutionContextI): Hints | Promise<Hints> {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'init');
     this.initialized = false;
     super.clear();
@@ -262,7 +237,7 @@ export class Hints extends Map<string, string | Object> {
             logErrorAndThrow(new EnhancedError('One or more load JSON from module failed'), log, ec);
           }
           this.initialized = true;
-          return true;
+          return this;
         });
     } else {
       jsonLoads.forEach(load => {
@@ -275,7 +250,7 @@ export class Hints extends Map<string, string | Object> {
         }
       });
       this.initialized = true;
-      return true;
+      return this;
     }
   }
 

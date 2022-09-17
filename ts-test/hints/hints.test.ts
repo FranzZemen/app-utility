@@ -125,13 +125,14 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse with wraps <<some-prefix key=value>>', () => {
-    const result = Hints.parseHints('<<some-prefix key=value>>', 'some-prefix');
-    if(isPromise(result)) {
+    const [remaining, hintsOrPromise] = Hints.parseHints('<<some-prefix key=value>>', 'some-prefix');
+    if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
       return
     }
     else {
-      const hints = result[1];
+      remaining.length.should.equal(0);
+      const hints = hintsOrPromise;
       hints.size.should.equal(3);
       hints.get('some-prefix').should.equal('some-prefix');
       hints.get('prefix').should.equal('some-prefix');
@@ -139,9 +140,9 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse empty JSON array []', () => {
-    const hints = new Hints('empty-json-array=[]');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('empty-json-array=[]');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -152,9 +153,9 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse empty JSON array [] with other hints', () => {
-    const hints = new Hints('key=value key2="value" empty-json-array=[] key3="value"');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('key=value key2="value" empty-json-array=[] key3="value"');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -166,9 +167,9 @@ describe('Hint Tests', () => {
   });
 
   it('should parse empty JSON object {}', () => {
-    const hints = new Hints('empty-json-object={} key=value');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('empty-json-object={} key=value');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -179,9 +180,9 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse array with empty JSON object {}', () => {
-    const hints = new Hints('empty-json-object=[{}] key=value');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('empty-json-object=[{}] key=value');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -192,13 +193,13 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse simple JSON object {"foo": "bar"}', () => {
-    const hints = new Hints(`simple-json-object =
+    let hints: Hints | Promise<Hints> = new Hints(`simple-json-object =
     {
       "foo": "bar"
     } 
     key=value`);
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -212,9 +213,9 @@ describe('Hint Tests', () => {
   });
 
   it('should parse complex JSON object {foo: {bar: [1, 2, true]}}', () => {
-    const hints = new Hints('complex-json-object = {"foo": {"bar": [1, 2, true]}} key=value');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('complex-json-object = {"foo": {"bar": [1, 2, true]}} key=value');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -229,9 +230,9 @@ describe('Hint Tests', () => {
   });
 
   it('should parse complex JSON array [{foo: {bar: [1, 2, true]}}, {some: "value"}]', () => {
-    const hints = new Hints('complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "value"}] key=value');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "value"}] key=value');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -242,9 +243,9 @@ describe('Hint Tests', () => {
   });
 
   it('should parse complex JSON array with folder spec [{foo: {bar: [1, 2, true]}}, {some: "../folder"}]', () => {
-    const hints = new Hints('complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value');
-    const result = hints.loadAndInitialize();
-    if (isPromise(result)) {
+    let hints: Hints | Promise<Hints> = new Hints('complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value');
+    hints = hints.loadAndInitialize();
+    if (isPromise(hints)) {
       unreachableCode.should.be.true;
       return;
     } else {
@@ -255,12 +256,11 @@ describe('Hint Tests', () => {
   });
 
   it('should parseHints complex JSON array with folder spec [{foo: {bar: [1, 2, true]}}, {some: "../folder"}]', () => {
-    let result = Hints.parseHints('<<re complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value>>', 're');
-    if(isPromise(result)) {
+    const [remaining, hintsOrPromise] = Hints.parseHints('<<re complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value>>', 're');
+    if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
-      const remaining = result[0];
-      const hints = result[1];
+      const hints: Hints = hintsOrPromise;
 
       hints.size.should.equal(4);
       const obj = hints.get('complex-json-array');
@@ -270,12 +270,11 @@ describe('Hint Tests', () => {
   });
 
   it('should load JSON from relative path ', () => {
-    let result = Hints.parseHints('<<re json = @(require:../testing/hints/test.json)>>', 're');
-    if(isPromise(result)) {
+    const [remaining, hintsOrPromise] = Hints.parseHints('<<re json = @(require:../testing/hints/test.json)>>', 're');
+    if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
-      const remaining = result[0];
-      const hints = result[1];
+      const hints: Hints = hintsOrPromise;
 
       hints.size.should.equal(3);
       const obj = hints.get('json');
@@ -284,13 +283,10 @@ describe('Hint Tests', () => {
   });
 
   it('should load JSON from module/function ', () => {
-    let result = Hints.parseHints('<<re json = @(import:@franzzemen/test=>getJSON)>>', 're');
-    if(isPromise(result)) {
-      return result
-        .then(tuple => {
-          const remaining = tuple[0];
-          const hints = tuple[1];
-
+    const [remaining, hintsOrPromise] = Hints.parseHints('<<re json = @(import:@franzzemen/test=>getJSON)>>', 're');
+    if(isPromise(hintsOrPromise)) {
+      return hintsOrPromise
+        .then(hints => {
           hints.size.should.equal(3);
           const obj = hints.get('json');
           obj['hello'].should.equal('world');
@@ -304,12 +300,10 @@ describe('Hint Tests', () => {
     }
   });
   it('should load JSON from module/attribute ', () => {
-    let result = Hints.parseHints('<<re json = @(import:@franzzemen/test:jsonStr)>>', 're');
-    if(isPromise(result)) {
-      return result
-        .then(tuple => {
-          const remaining = tuple[0];
-          const hints = tuple[1];
+    const [remaining, hintsOrPromise]= Hints.parseHints('<<re json = @(import:@franzzemen/test:jsonStr)>>', 're');
+    if(isPromise(hintsOrPromise)) {
+      return hintsOrPromise
+        .then(hints => {
 
           hints.size.should.equal(3);
           const obj = hints.get('json');
@@ -321,12 +315,11 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse folder paths without quotes (without spaces) ', () => {
-    const result = Hints.parseHints('<<re path=./../../some-_Path>>', 're');
-    if(isPromise(result)) {
+    const [remaining, hintsOrPromise] = Hints.parseHints('<<re path=./../../some-_Path>>', 're');
+    if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
-      const remaining = result[0];
-      const hints = result[1];
+      const hints: Hints = hintsOrPromise;
 
       hints.size.should.equal(3);
       const obj = hints.get('path');
@@ -335,11 +328,11 @@ describe('Hint Tests', () => {
     }
   });
   it('should peek hints', () => {
-    const result = Hints.peekHints('<<re name=Hello>>', 're');
-    if(isPromise(result)) {
+    const hintsOrPromise = Hints.peekHints('<<re name=Hello>>', 're');
+    if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
-      const hints = result;
+      const hints = hintsOrPromise;
 
       hints.size.should.equal(3);
       hints.get('re').should.equal('re');
