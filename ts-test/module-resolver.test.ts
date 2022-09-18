@@ -26,7 +26,7 @@ describe('app-utility tests', () => {
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -44,24 +44,27 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              refName.should.equal('myJSONObj');
-              (typeof testJsonObj).should.equal('object');
-              testJsonObj.name.should.exist;
-              testJsonObj.id.should.equal(1);
-              testJsonObj.name.should.equal('Franz');
-              testJsonObj.id.should.exist;
-            });
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                unreachableCode.should.be.true;
+              });
+          } else {
+            refName.should.equal('myJSONObj');
+            (typeof testJsonObj).should.equal('object');
+            testJsonObj.name.should.exist;
+            testJsonObj.id.should.equal(1);
+            testJsonObj.name.should.equal('Franz');
+            testJsonObj.id.should.exist;
+          }
         });
-
         it('should load json with passing schema check', () => {
           let testJsonObj;
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -86,18 +89,20 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              expect(values[0].error).to.be.undefined;
-              values[0].resolved.should.be.true;
-              values[0].loaded.should.be.true;
-              (typeof testJsonObj).should.equal('object');
-              testJsonObj.name.should.exist;
-              testJsonObj.id.should.equal(1);
-              testJsonObj.name.should.equal('Franz');
-              testJsonObj.id.should.exist;
-            });
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            unreachableCode.should.be.true;
+          } else {
+            expect(resultOrPromise[0].error).to.be.undefined;
+            resultOrPromise[0].resolved.should.be.true;
+            resultOrPromise[0].loaded.should.be.true;
+            (typeof testJsonObj).should.equal('object');
+            testJsonObj.name.should.exist;
+            testJsonObj.id.should.equal(1);
+            testJsonObj.name.should.equal('Franz');
+            testJsonObj.id.should.exist;
+          }
+          ;
         });
 
         it('should load json with failing schema check', () => {
@@ -105,7 +110,7 @@ describe('app-utility tests', () => {
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -131,22 +136,23 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              const result = values[0];
-              expect(result.error).to.exist;
-              result.resolved.should.be.false;
-              result.loaded.should.be.false;
-            });
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            unreachableCode.should.be.true;
+          } else {
+            resultOrPromise.length.should.equal(1);
+            const result = resultOrPromise[0];
+            expect(result.error).to.exist;
+            result.resolved.should.be.false;
+            result.loaded.should.be.false;
+          }
         });
         it('should load json with async schema check', () => {
           let testJsonObj;
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -181,25 +187,29 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              expect(values[0].error).to.be.undefined;
-              values[0].resolved.should.be.true;
-              values[0].loaded.should.be.true;
-              (typeof testJsonObj).should.equal('object');
-              testJsonObj.name.should.exist;
-              testJsonObj.id.should.equal(1);
-              testJsonObj.name.should.equal('Franz');
-              testJsonObj.id.should.exist;
-            });
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                expect(values[0].error).to.be.undefined;
+                values[0].resolved.should.be.true;
+                values[0].loaded.should.be.true;
+                (typeof testJsonObj).should.equal('object');
+                testJsonObj.name.should.exist;
+                testJsonObj.id.should.equal(1);
+                testJsonObj.name.should.equal('Franz');
+                testJsonObj.id.should.exist;
+              });
+          } else {
+            unreachableCode.should.be.true;
+          }
         });
         it('should load json with async schema fail', () => {
           let testJsonObj;
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -240,15 +250,20 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              const result = values[0];
-              expect(result.error).to.exist;
-              result.resolved.should.be.false;
-              result.loaded.should.be.false;
-            });
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                values.length.should.equal(1);
+                const result = values[0];
+                expect(result.error).to.exist;
+                result.resolved.should.be.false;
+                result.loaded.should.be.false;
+              });
+          } else {
+            unreachableCode.should.be.true;
+          }
+
         });
 
         it('should load json with compiled async check', () => {
@@ -256,7 +271,7 @@ describe('app-utility tests', () => {
           let refName: string;
 
           function setJSON(_refName: string, _jsonObj): true {
-            testJsonObj = _jsonObj
+            testJsonObj = _jsonObj;
             refName = _refName;
             return true;
           }
@@ -292,9 +307,9 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            resultOrPromise.then(values => {
               expect(values[0].error).to.be.undefined;
               values[0].resolved.should.be.true;
               values[0].loaded.should.be.true;
@@ -303,7 +318,10 @@ describe('app-utility tests', () => {
               testJsonObj.id.should.equal(1);
               testJsonObj.name.should.equal('Franz');
               testJsonObj.id.should.exist;
-            });
+            })
+          } else {
+            unreachableCode.should.be.true;
+          }
         });
       });
       describe('loadPackageType=json and moduleResolution=es', () => {
@@ -333,19 +351,23 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              a.refName.should.equal('myA');
-              values[0].resolvedObject['prop'].should.equal('jsonStr');
-              ('prop' in a.jsonObj).should.be.true;
-              a.jsonObj.prop.should.equal('jsonStr');
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
-        })
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                values.length.should.equal(1);
+                a.refName.should.equal('myA');
+                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                ('prop' in a.jsonObj).should.be.true;
+                a.jsonObj.prop.should.equal('jsonStr');
+              }, err => {
+                console.log(err);
+                unreachableCode.should.be.false;
+              });
+          } else {
+            unreachableCode.should.be.true;
+          }
+        });
         it('should resolve loading JSON from a package and setting an object with extra params [5,"abc"]', () => {
           class A {
             public jsonObj;
@@ -375,25 +397,29 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              values[0].resolvedObject['prop'].should.equal('jsonStr');
-              ('prop' in a.jsonObj).should.be.true;
-              a.jsonObj.prop.should.equal('jsonStr');
-              a.num.should.equal(5);
-              a.str.should.equal('abc');
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
-        })
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                values.length.should.equal(1);
+                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                ('prop' in a.jsonObj).should.be.true;
+                a.jsonObj.prop.should.equal('jsonStr');
+                a.num.should.equal(5);
+                a.str.should.equal('abc');
+              }, err => {
+                console.log(err);
+                unreachableCode.should.be.false;
+              });
+          } else {
+            unreachableCode.should.be.true;
+          }
+        });
         it('should resolve loading JSON from a package and setting a function', () => {
           let jsonObj;
 
           function setJSON(refName, _jsonObj): true {
-            jsonObj = _jsonObj
+            jsonObj = _jsonObj;
             return true;
           }
 
@@ -411,24 +437,29 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              values[0].resolvedObject['prop'].should.equal('jsonStr');
-              jsonObj.prop.should.equal('jsonStr');
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
-        })
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                values.length.should.equal(1);
+                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                jsonObj.prop.should.equal('jsonStr');
+              }, err => {
+                console.log(err);
+                unreachableCode.should.be.false;
+              });
+          } else {
+            unreachableCode.should.be.true;
+
+          }
+        });
         it('should resolve loading JSON from a package and setting a function with extra params [5,"abc"]', () => {
           let jsonObj;
           let num: number;
           let str: string;
 
           function setJSON(refName, _jsonObj, aNum, aStr): true {
-            jsonObj = _jsonObj
+            jsonObj = _jsonObj;
             num = aNum;
             str = aStr;
             return true;
@@ -449,97 +480,106 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              values[0].resolvedObject['prop'].should.equal('jsonStr');
-              jsonObj.prop.should.equal('jsonStr');
-              num.should.equal(5);
-              str.should.equal('abc');
-              resolver.clear();
-              resolver.pendingResolutions.length.should.equal(0);
-              resolver.moduleResolutionPromises.length.should.equal(0);
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
-        })
-      });
-      describe('loadPackageType=object', () => {
-        it('should load a via module function from es extended with successful schema check on moduleDef', () => {
-          let obj;
-
-          function setObj(refName, _obj): true {
-            obj = _obj;
-            return true;
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                values.length.should.equal(1);
+                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                jsonObj.prop.should.equal('jsonStr');
+                num.should.equal(5);
+                str.should.equal('abc');
+                resolver.clear();
+                resolver.pendingResolutions.length.should.equal(0);
+                resolver.moduleResolutionPromises.length.should.equal(0);
+              }, err => {
+                console.log(err);
+                unreachableCode.should.be.false;
+              });
+          } else {
+            unreachableCode.should.be.true;
           }
-
-          const pendingResolution: PendingModuleResolution = {
-            refName: 'myA',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setObj,
-            module: {
-              moduleName: '../testing/extended.js',
-              functionName: 'create2',
-              moduleResolution: ModuleResolution.es,
-              loadSchema: {
-                validationSchema: {
-                  name: {type: 'string'}
-                },
-                useNewCheckerFunction: true
-              }
-            },
-            loadPackageType: LoadPackageType.package
-          };
-          const resolver = new ModuleResolver();
-          resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              const result = values[0];
-              expect(result.resolvedObject['name']).to.equal('Test');
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
         });
-        it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
-          let obj;
+        describe('loadPackageType=object', () => {
+          it('should load a via module function from es extended with successful schema check on moduleDef', () => {
+            let obj;
 
-          function setObj(refName,_obj): true {
-            obj = _obj;
-            return true;
-          }
+            function setObj(refName, _obj): true {
+              obj = _obj;
+              return true;
+            }
 
-          const pendingResolution: PendingModuleResolution = {
-            refName: 'myA',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setObj,
-            module: {
-              moduleName: '../testing/bad-extended.cjs',
-              moduleResolution: ModuleResolution.commonjs,
-              functionName: 'createAsyncFunc'
-            },
-            loadPackageType: LoadPackageType.package
-          };
-          const resolver = new ModuleResolver();
-          resolver.add(pendingResolution);
-          const promise = resolver.resolve();
-          return promise
-            .then(values => {
-              values.length.should.equal(1);
-              const result = values[0];
-              expect(result.resolvedObject).to.equal(50);
-            }, err => {
-              console.log(err);
-              unreachableCode.should.be.false;
-            })
+            const pendingResolution: PendingModuleResolution = {
+              refName: 'myA',
+              ownerIsObject: false,
+              ownerThis: undefined,
+              ownerSetter: setObj,
+              module: {
+                moduleName: '../testing/extended.js',
+                functionName: 'create2',
+                moduleResolution: ModuleResolution.es,
+                loadSchema: {
+                  validationSchema: {
+                    name: {type: 'string'}
+                  },
+                  useNewCheckerFunction: true
+                }
+              },
+              loadPackageType: LoadPackageType.package
+            };
+            const resolver = new ModuleResolver();
+            resolver.add(pendingResolution);
+            const resultOrPromise = resolver.resolve();
+            if (isPromise(resultOrPromise)) {
+              return resultOrPromise
+                .then(values => {
+                  values.length.should.equal(1);
+                  const result = values[0];
+                  expect(result.resolvedObject['name']).to.equal('Test');
+                }, err => {
+                  console.log(err);
+                  unreachableCode.should.be.true;
+                });
+            } else {
+              unreachableCode.should.be.true;
+            }
+          });
+          it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
+            let obj;
+
+            function setObj(refName, _obj): true {
+              obj = _obj;
+              return true;
+            }
+
+            const pendingResolution: PendingModuleResolution = {
+              refName: 'myA',
+              ownerIsObject: false,
+              ownerThis: undefined,
+              ownerSetter: setObj,
+              module: {
+                moduleName: '../testing/bad-extended.cjs',
+                moduleResolution: ModuleResolution.commonjs,
+                functionName: 'createAsyncFunc'
+              },
+              loadPackageType: LoadPackageType.package
+            };
+            const resolver = new ModuleResolver();
+            resolver.add(pendingResolution);
+            const resultOrPromise = resolver.resolve();
+            if (isPromise(resultOrPromise)) {
+              resultOrPromise.then(values => {
+                values.length.should.equal(1);
+                const result = values[0];
+                expect(result.resolvedObject).to.equal(50);
+              })
+            } else {
+              unreachableCode.should.be.true;
+
+            }
+          });
         });
       });
-    })
-  })
+    });
+  });
 });

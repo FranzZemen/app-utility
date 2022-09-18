@@ -15,7 +15,7 @@ export enum LoadPackageType {
   package = 'object'
 }
 
-export type ModuleResolutionSetter = ((refName: any, result: any | Promise<any>, ...params) => true | Promise<true>);
+export type ModuleResolutionSetter = ((refName: any, result: any, ...params) => true | Promise<true>);
 
 
 export interface PendingModuleResolution {
@@ -43,7 +43,7 @@ interface ModuleResolutionResult {
 
 export class ModuleResolver {
   pendingResolutions: PendingModuleResolution[] = [];
-  moduleResolutionPromises: Promise<ModuleResolutionResult>[] = [];
+  moduleResolutionPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[] = [];
 
   constructor() {
   }
@@ -52,7 +52,7 @@ export class ModuleResolver {
     return (this.pendingResolutions.length > 0 && this.moduleResolutionPromises.length === 0);
   }
 
-  private static invokeSetter(result: ModuleResolutionResult, ec?: ExecutionContextI): Promise<true> {
+  private static invokeSetter(result: ModuleResolutionResult, ec?: ExecutionContextI): true | Promise<true> {
     const log = new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'invokeSetter');
     if (result.resolution.ownerIsObject === true) {
       if (typeof result.resolution.ownerSetter === 'string') {
@@ -68,7 +68,7 @@ export class ModuleResolver {
           logErrorAndReturn(err, log, ec);
           result.resolved = false;
           result.error = err;
-          return Promise.resolve(true);
+          return true;
         }
         if (isPromise(setterResult)) {
           return setterResult
@@ -82,7 +82,7 @@ export class ModuleResolver {
               return true;
             });
         } else {
-          return Promise.resolve(setterResult);
+          return setterResult;
         }
       } else {
         const errMsg = `Invalid ownerSetter for ownerIsObject - it should be a string`;
@@ -91,7 +91,7 @@ export class ModuleResolver {
         logErrorAndReturn(err);
         result.resolved = false;
         result.error = err;
-        return Promise.resolve(true);
+        return true;
       }
     } else {
       if (typeof result.resolution.ownerSetter === 'string') {
@@ -101,7 +101,7 @@ export class ModuleResolver {
         logErrorAndReturn(err);
         result.resolved = false;
         result.error = err;
-        return Promise.resolve(true);
+        return true;
       } else {
         let setterResult: any | Promise<any>;
         try {
@@ -115,7 +115,7 @@ export class ModuleResolver {
           logErrorAndReturn(err, log, ec);
           result.resolved = false;
           result.error = err;
-          return Promise.resolve(true);
+          return true;
         }
         if (isPromise(setterResult)) {
           return setterResult
@@ -129,7 +129,7 @@ export class ModuleResolver {
               return true;
             });
         } else {
-          return Promise.resolve(setterResult);
+          return setterResult;
         }
       }
     }
@@ -142,96 +142,113 @@ export class ModuleResolver {
     this.pendingResolutions.push(pendingResolution);
   }
 
-  resolve(ec?: ExecutionContextI): Promise<ModuleResolutionResult[]> {
+  resolve(ec?: ExecutionContextI): ModuleResolutionResult[] | Promise<ModuleResolutionResult[]> {
     const log = new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'resolve');
     if (!this.pendingResolutions || this.pendingResolutions.length === 0) {
-      return Promise.resolve([]);
+      return [];
     }
     if (!this.moduleResolutionPromises) {
       this.moduleResolutionPromises = [];
     }
+    let async = false;
     this.pendingResolutions.forEach(pendingResolution => {
       let loadFunction: (ModuleDefinition, ExecutionContextI) => any | Promise<any>;
-      if(pendingResolution.module.moduleResolution === ModuleResolution.json) {
+      if (pendingResolution.module.moduleResolution === ModuleResolution.json) {
         loadFunction = loadJSONResource;
       } else {
         loadFunction = pendingResolution.loadPackageType === LoadPackageType.json ? loadJSONFromPackage : loadFromModule;
       }
-
-      const resultPromise: Promise<ModuleResolutionResult> = new Promise<ModuleResolutionResult>((resolve, reject) => {
-        try {
-          const loadResult = loadFunction(pendingResolution.module, ec);
-          if (isPromise(loadResult)) {
-            loadResult
-              .then(obj => {
-                const result: ModuleResolutionResult = {
-                  resolution: pendingResolution,
-                  loaded: true,
-                  resolved: false,
-                  resolvedObject: obj
-                };
-                ModuleResolver.invokeSetter(result, ec)
+      try {
+        const loadResult = loadFunction(pendingResolution.module, ec);
+        if (isPromise(loadResult)) {
+          async = true;
+          const moduleResolutionPromise = loadResult
+            .then(obj => {
+              const result: ModuleResolutionResult = {
+                resolution: pendingResolution,
+                loaded: true,
+                resolved: false,
+                resolvedObject: obj
+              };
+              const setterResult = ModuleResolver.invokeSetter(result, ec);
+              if (isPromise(setterResult)) {
+                return setterResult
                   .then(trueVal => {
                     result.resolved = true;
-                    resolve(result);
+                    return result;
                   }, err => {
                     logErrorAndReturn(err, log, ec);
                     result.resolved = false;
                     result.error = err;
-                    resolve(result);
+                    return result;
                   });
-              }, err => {
-                log.warn(pendingResolution, `Pending resolution could not be successfully resolved`);
-                logErrorAndReturn(err, log, ec);
-                resolve({
-                  resolution: pendingResolution,
-                  loaded: false,
-                  resolved: false,
-                  error: err
-                } as ModuleResolutionResult);
-              });
-          } else {
-            const result: ModuleResolutionResult = {
-              resolution: pendingResolution,
-              loaded: true,
-              resolved: false,
-              resolvedObject: loadResult
-            };
-            ModuleResolver.invokeSetter(result, ec)
-              .then(trueVal => {
-                resolve(result);
+              } else {
                 result.resolved = true;
+                return result;
+              }
+            }, err => {
+              log.warn(pendingResolution, `Pending resolution could not be successfully resolved`);
+              logErrorAndReturn(err, log, ec);
+              return ({
+                resolution: pendingResolution,
+                loaded: false,
+                resolved: false,
+                error: err
+              });
+            });
+          this.moduleResolutionPromises.push(moduleResolutionPromise);
+        } else {
+          const result: ModuleResolutionResult = {
+            resolution: pendingResolution,
+            loaded: true,
+            resolved: false,
+            resolvedObject: loadResult
+          };
+          const setterResult = ModuleResolver.invokeSetter(result, ec);
+          let resultOrPromise: (ModuleResolutionResult | Promise<ModuleResolutionResult>);
+          if (isPromise(setterResult)) {
+            async = true;
+            const resultOrPromise: (ModuleResolutionResult | Promise<ModuleResolutionResult>) = setterResult
+              .then(trueVal => {
+                result.resolved = true;
+                return result;
               }, err => {
                 logErrorAndReturn(err, log, ec);
                 result.resolved = false;
                 result.error = err;
-                resolve(result);
+                return result;
               });
+            this.moduleResolutionPromises.push(resultOrPromise);
+          } else {
+            result.resolved = true;
+            this.moduleResolutionPromises.push(result);
           }
-        } catch (err) {
-          log.warn(pendingResolution, `Pending resolution could not be successfully resolved`);
-          logErrorAndReturn(err, log, ec);
-          resolve({
-            resolution: pendingResolution,
-            loaded: false,
-            resolved: false,
-            error: err
-          } as ModuleResolutionResult);
         }
-      });
-      this.moduleResolutionPromises.push(resultPromise);
+      } catch (err) {
+        log.warn(pendingResolution, `Pending resolution could not be successfully resolved`);
+        logErrorAndReturn(err, log, ec);
+        this.moduleResolutionPromises.push ({
+          resolution: pendingResolution,
+          loaded: false,
+          resolved: false,
+          error: err
+        });
+      }
     });
-    if(this.moduleResolutionPromises.length > 0) {
-      return Promise.all(this.moduleResolutionPromises)
-        .then(values => {
-          return values;
-        }, err => {
-          throw logErrorAndReturn(err);
-        })
+    if(async) {
+      if(this.moduleResolutionPromises.length > 0) {
+        return Promise.all(this.moduleResolutionPromises)
+          .then(values => {
+            return values;
+          }, err => {
+            throw logErrorAndReturn(err);
+          })
+      } else {
+        return Promise.resolve([]);
+      }
     } else {
-      return Promise.resolve([]);
+      return this.moduleResolutionPromises as ModuleResolutionResult[];
     }
-
   }
 
   clear() {

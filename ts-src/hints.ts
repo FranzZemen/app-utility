@@ -162,18 +162,25 @@ export class Hints extends Map<string, string | Object> {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
     if(moduleResolver.hasPendingResolutions()) {
-      return moduleResolver.resolve(ec)
-        .then(resolutions => {
-          const someErrors = resolutions.some(resolution => resolution.error);
-          if(someErrors) {
-            log.warn(resolutions, 'Errors resolving modules');
-            throw logErrorAndReturn(new EnhancedError('Errors resolving modules'));
-          } else {
-            this.initialized = true;
-            moduleResolver.clear();
-            return this;
-          }
-        })
+      const results = moduleResolver.resolve(ec);
+      if(isPromise(results)) {
+        return results
+          .then(resolutions => {
+            const someErrors = resolutions.some(resolution => resolution.error);
+            if(someErrors) {
+              log.warn(resolutions, 'Errors resolving modules');
+              throw logErrorAndReturn(new EnhancedError('Errors resolving modules'));
+            } else {
+              this.initialized = true;
+              moduleResolver.clear();
+              return this;
+            }
+          })
+      } else {
+        this.initialized = true;
+        moduleResolver.clear();
+        return this;
+      }
     } else {
       this.initialized = true;
       return this;
