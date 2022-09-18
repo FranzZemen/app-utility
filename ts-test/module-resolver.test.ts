@@ -3,12 +3,12 @@ import 'mocha';
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
 import {isPromise} from 'util/types';
 import {
-  CheckFunction,
+  CheckFunction, ExecutionContextI, loadFromModule, loadJSONFromPackage,
   loadJSONResource,
-  LoadPackageType, LoadSchema,
+  LoadPackageType, LoadSchema, ModuleDefinition,
   ModuleResolution,
   ModuleResolver,
-  PendingModuleResolution
+  PendingModuleResolution, TypeOf
 } from '../publish/index.js';
 
 
@@ -285,7 +285,6 @@ describe('app-utility tests', () => {
             });
         });
       });
-
       describe('loadPackageType=json and moduleResolution=es', () => {
         it('should resolve loading JSON from a package and setting an object', () => {
           class A {
@@ -440,26 +439,30 @@ describe('app-utility tests', () => {
         })
       });
       describe('loadPackageType=object', () => {
-        it('should resolve loading JSON from a package and setting an object', () => {
-          class A {
-            public jsonObj;
+        it('should load a via module function from es extended with successful schema check on moduleDef', () => {
+          let obj;
 
-            setJSON(jsonObj) {
-              this.jsonObj = jsonObj;
-            }
+          function setObj(_obj): true {
+            obj = _obj;
+            return true;
           }
 
-          const a = new A();
           const pendingResolution: PendingModuleResolution = {
-            ownerIsObject: true,
-            ownerThis: a,
-            ownerSetter: 'setJSON',
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setObj,
             module: {
-              moduleName: '@franzzemen/test',
-              propertyName: 'nestedJsonStr.jsonStr',
-              moduleResolution: ModuleResolution.es
+              moduleName: '../testing/extended.js',
+              functionName: 'create2',
+              moduleResolution: ModuleResolution.es,
+              loadSchema: {
+                validationSchema: {
+                  name: {type: 'string'}
+                },
+                useNewCheckerFunction: true
+              }
             },
-            loadPackageType: LoadPackageType.json
+            loadPackageType: LoadPackageType.package
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -467,14 +470,45 @@ describe('app-utility tests', () => {
           return promise
             .then(values => {
               values.length.should.equal(1);
-              values[0].resolvedObject['prop'].should.equal('jsonStr');
-              ('prop' in a.jsonObj).should.be.true;
-              a.jsonObj.prop.should.equal('jsonStr');
+              const result = values[0];
+              expect(result.resolvedObject['name']).to.equal('Test');
             }, err => {
               console.log(err);
               unreachableCode.should.be.false;
             })
-        })
+        });
+        it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
+          let obj;
+
+          function setObj(_obj): true {
+            obj = _obj;
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setObj,
+            module: {
+              moduleName: '../testing/bad-extended.cjs',
+              moduleResolution: ModuleResolution.commonjs,
+              functionName: 'createAsyncFunc'
+            },
+            loadPackageType: LoadPackageType.package
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              values.length.should.equal(1);
+              const result = values[0];
+              expect(result.resolvedObject).to.equal(50);
+            }, err => {
+              console.log(err);
+              unreachableCode.should.be.false;
+            })
+        });
       });
     })
   })
