@@ -15,10 +15,11 @@ export enum LoadPackageType {
   package = 'object'
 }
 
-export type ModuleResolutionSetter = ((result: any | Promise<any>, ...params) => true | Promise<true>);
+export type ModuleResolutionSetter = ((refName: any, result: any | Promise<any>, ...params) => true | Promise<true>);
 
 
 export interface PendingModuleResolution {
+  refName: any,
   ownerIsObject: boolean,
   ownerThis: any,
   ownerSetter: string | ModuleResolutionSetter;
@@ -47,6 +48,10 @@ export class ModuleResolver {
   constructor() {
   }
 
+  hasPendingResolutions(): boolean {
+    return (this.pendingResolutions.length > 0 && this.moduleResolutionPromises.length === 0);
+  }
+
   private static invokeSetter(result: ModuleResolutionResult, ec?: ExecutionContextI): Promise<true> {
     const log = new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'invokeSetter');
     if (result.resolution.ownerIsObject === true) {
@@ -54,9 +59,9 @@ export class ModuleResolver {
         let setterResult: true | Promise<true>;
         try {
           if (result.resolution.paramsArray) {
-            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolvedObject, ...result.resolution.paramsArray);
+            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject, ...result.resolution.paramsArray);
           } else {
-            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolvedObject);
+            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject);
           }
         } catch (err) {
           log.warn(result, `Setter could not be successfully invoked`);
@@ -101,9 +106,9 @@ export class ModuleResolver {
         let setterResult: any | Promise<any>;
         try {
           if (result.resolution.paramsArray) {
-            setterResult = result.resolution.ownerSetter(result.resolvedObject, ...result.resolution.paramsArray);
+            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject, ...result.resolution.paramsArray);
           } else {
-            setterResult = result.resolution.ownerSetter(result.resolvedObject);
+            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject);
           }
         } catch (err) {
           log.warn(result, `Setter could not be successfully invoked`);

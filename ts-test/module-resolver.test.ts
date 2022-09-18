@@ -23,13 +23,16 @@ describe('app-utility tests', () => {
       describe('module resolution = json', () => {
         it('should load json with no schema check', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -44,6 +47,7 @@ describe('app-utility tests', () => {
           const promise = resolver.resolve();
           return promise
             .then(values => {
+              refName.should.equal('myJSONObj');
               (typeof testJsonObj).should.equal('object');
               testJsonObj.name.should.exist;
               testJsonObj.id.should.equal(1);
@@ -54,13 +58,16 @@ describe('app-utility tests', () => {
 
         it('should load json with passing schema check', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -95,13 +102,16 @@ describe('app-utility tests', () => {
 
         it('should load json with failing schema check', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -133,13 +143,16 @@ describe('app-utility tests', () => {
         });
         it('should load json with async schema check', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -183,13 +196,16 @@ describe('app-utility tests', () => {
         });
         it('should load json with async schema fail', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -237,11 +253,15 @@ describe('app-utility tests', () => {
 
         it('should load json with compiled async check', () => {
           let testJsonObj;
+          let refName: string;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(_refName: string, _jsonObj): true {
             testJsonObj = _jsonObj
+            refName = _refName;
             return true;
           }
+
+
           const schema: ValidationSchema = {
             $$async: true,
             name: {type: 'string'},
@@ -259,6 +279,7 @@ describe('app-utility tests', () => {
           const loadSchema: CheckFunction = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -289,14 +310,17 @@ describe('app-utility tests', () => {
         it('should resolve loading JSON from a package and setting an object', () => {
           class A {
             public jsonObj;
+            refName: string;
 
-            setJSON(jsonObj) {
+            setJSON(refName, jsonObj) {
               this.jsonObj = jsonObj;
+              this.refName = refName;
             }
           }
 
           const a = new A();
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: true,
             ownerThis: a,
             ownerSetter: 'setJSON',
@@ -313,6 +337,7 @@ describe('app-utility tests', () => {
           return promise
             .then(values => {
               values.length.should.equal(1);
+              a.refName.should.equal('myA');
               values[0].resolvedObject['prop'].should.equal('jsonStr');
               ('prop' in a.jsonObj).should.be.true;
               a.jsonObj.prop.should.equal('jsonStr');
@@ -327,7 +352,7 @@ describe('app-utility tests', () => {
             public num;
             public str;
 
-            setJSON(jsonObj, aNum, aStr) {
+            setJSON(refName, jsonObj, aNum, aStr) {
               this.jsonObj = jsonObj;
               this.num = aNum;
               this.str = aStr;
@@ -336,6 +361,7 @@ describe('app-utility tests', () => {
 
           const a = new A();
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: true,
             ownerThis: a,
             ownerSetter: 'setJSON',
@@ -366,12 +392,13 @@ describe('app-utility tests', () => {
         it('should resolve loading JSON from a package and setting a function', () => {
           let jsonObj;
 
-          function setJSON(_jsonObj): true {
+          function setJSON(refName, _jsonObj): true {
             jsonObj = _jsonObj
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -400,7 +427,7 @@ describe('app-utility tests', () => {
           let num: number;
           let str: string;
 
-          function setJSON(_jsonObj, aNum, aStr): true {
+          function setJSON(refName, _jsonObj, aNum, aStr): true {
             jsonObj = _jsonObj
             num = aNum;
             str = aStr;
@@ -408,6 +435,7 @@ describe('app-utility tests', () => {
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setJSON,
@@ -442,12 +470,13 @@ describe('app-utility tests', () => {
         it('should load a via module function from es extended with successful schema check on moduleDef', () => {
           let obj;
 
-          function setObj(_obj): true {
+          function setObj(refName, _obj): true {
             obj = _obj;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setObj,
@@ -480,12 +509,13 @@ describe('app-utility tests', () => {
         it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
           let obj;
 
-          function setObj(_obj): true {
+          function setObj(refName,_obj): true {
             obj = _obj;
             return true;
           }
 
           const pendingResolution: PendingModuleResolution = {
+            refName: 'myA',
             ownerIsObject: false,
             ownerThis: undefined,
             ownerSetter: setObj,
