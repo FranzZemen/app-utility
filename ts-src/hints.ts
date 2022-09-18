@@ -111,8 +111,7 @@ export class Hints extends Map<string, string | Object> {
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\((require|import):([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
     match = undefined;
     matchBoundaries = [];
-//    let jsonLoads: { key: string, moduleDef: ModuleDefinition }[] = [];
-//    let asyncLoads = false;
+
     const moduleResolver = new ModuleResolver();
     while ((match = nvRegex.exec(hintsCopy)) !== null) {
       const key = match[1].trim();
@@ -120,7 +119,6 @@ export class Hints extends Map<string, string | Object> {
       let moduleResolution = ModuleResolution.commonjs;
       if (importStatement === 'import') {
         moduleResolution = ModuleResolution.es;
-//        asyncLoads = true;
       }
       const moduleName = match[3].trim();
       const attribOrFunction = match[4].trim();
@@ -144,7 +142,6 @@ export class Hints extends Map<string, string | Object> {
         ownerSetter: 'setHint',
         paramsArray: [ec]
       });
-//      jsonLoads.push({key: match[1].trim(), moduleDef: {moduleName, functionName, propertyName, moduleResolution}});
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
     // Build a new string removing prior results, which are sorted in reverse index
@@ -181,53 +178,6 @@ export class Hints extends Map<string, string | Object> {
       this.initialized = true;
       return this;
     }
-
-/*
-    if (asyncLoads) {
-      const promises: (Object | Promise<Object>)[] = [];
-      jsonLoads.forEach(load => {
-        try {
-          promises.push(loadJSONFromPackage(load.moduleDef, ec));
-        } catch (err) {
-          const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
-          log.error(err);
-          logErrorAndThrow(error, log, ec);
-        }
-      });
-      return Promise.allSettled(promises)
-        .then(values => {
-          let hasErrors = false;
-          for (let i = 0; i < values.length; i++) {
-            const result = values[i];
-            if (result.status === 'fulfilled') {
-              const key = jsonLoads[i].key;
-              super.set(key, result.value);
-            } else {
-              log.warn(result.reason, `Cannot load JSON from module ${jsonLoads[i].moduleDef.moduleName} and function ${jsonLoads[i].moduleDef.functionName} or property ${jsonLoads[i].moduleDef.propertyName}`);
-              const err = new Error(result.reason);
-              log.error(err);
-              hasErrors = true;
-            }
-          }
-          if (hasErrors) {
-            logErrorAndThrow(new EnhancedError('One or more load JSON from module failed'), log, ec);
-          }
-          this.initialized = true;
-          return this;
-        });
-    } else {
-      jsonLoads.forEach(load => {
-        try {
-          let jsonObj: Object = loadJSONFromPackage(load.moduleDef, ec);
-          this.set(load.key, jsonObj);
-        } catch (err) {
-          const error = new EnhancedError(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`, err);
-          logErrorAndThrow(error, log, ec);
-        }
-      });
-      this.initialized = true;
-      return this;
-    }*/
   }
 
   static peekHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
