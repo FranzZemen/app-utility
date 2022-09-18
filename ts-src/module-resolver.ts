@@ -48,6 +48,10 @@ export class ModuleResolver {
   constructor() {
   }
 
+  hasResolution(refName: string): boolean {
+    return this.pendingResolutions.find(pendingResulton => pendingResulton.refName === refName) !== undefined;
+  }
+
   hasPendingResolutions(): boolean {
     return (this.pendingResolutions.length > 0 && this.moduleResolutionPromises.length === 0);
   }
