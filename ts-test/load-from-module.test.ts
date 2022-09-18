@@ -122,7 +122,9 @@ describe('app-utility tests', () => {
 
       });
       it('should load json with no schema check', done => {
-        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json});
+        const testJsonObj: any = loadJSONResource({
+          moduleName: '../testing/test-json.json',
+          moduleResolution: ModuleResolution.json});
         (typeof testJsonObj).should.equal('object');
         testJsonObj.name.should.exist;
         testJsonObj.id.should.exist;
@@ -137,7 +139,10 @@ describe('app-utility tests', () => {
           useNewCheckerFunction: false
         };
         try {
-          const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
+          const testJsonObj: any = loadJSONResource({
+            moduleName: '../testing/test-json.json',
+            moduleResolution: ModuleResolution.json,
+            loadSchema});
           (typeof testJsonObj).should.equal('object');
           testJsonObj.name.should.exist;
           testJsonObj.id.should.exist;
@@ -156,7 +161,10 @@ describe('app-utility tests', () => {
           useNewCheckerFunction: false
         };
         try {
-          const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
+          const testJsonObj: any = loadJSONResource({
+            moduleName: '../testing/test-json.json',
+            moduleResolution: ModuleResolution.json,
+            loadSchema});
           unreachableCode.should.be.true;
         } catch (err) {
           console.error(err);
@@ -181,7 +189,10 @@ describe('app-utility tests', () => {
           },
           useNewCheckerFunction: true
         };
-        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
+        const testJsonObj: any = loadJSONResource({
+          moduleName: '../testing/test-json.json',
+          moduleResolution: ModuleResolution.json,
+          loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           obj.label.should.equal('A');
@@ -211,7 +222,10 @@ describe('app-utility tests', () => {
           },
           useNewCheckerFunction: true
         };
-        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
+        const testJsonObj: any = loadJSONResource({
+          moduleName: '../testing/test-json.json',
+          moduleResolution: ModuleResolution.json,
+          loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           unreachableCode.should.be.true;
@@ -236,7 +250,10 @@ describe('app-utility tests', () => {
           }
         };
         const loadSchema = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
-        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
+        const testJsonObj: any = loadJSONResource({
+          moduleName: '../testing/test-json.json',
+          moduleResolution: ModuleResolution.json,
+          loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           obj.label.should.equal('A');

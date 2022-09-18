@@ -1,7 +1,13 @@
 import {isPromise} from 'util/types';
 import {EnhancedError, logErrorAndReturn} from './enhanced-error.js';
 import {ExecutionContextI} from './execution-context.js';
-import {loadFromModule, loadJSONFromPackage, ModuleDefinition} from './load-from-module.js';
+import {
+  loadFromModule,
+  loadJSONFromPackage,
+  loadJSONResource,
+  ModuleDefinition,
+  ModuleResolution
+} from './load-from-module.js';
 import {LoggerAdapter} from './log/index.js';
 
 export enum LoadPackageType {
@@ -140,7 +146,12 @@ export class ModuleResolver {
       this.moduleResolutionPromises = [];
     }
     this.pendingResolutions.forEach(pendingResolution => {
-      let loadFunction = pendingResolution.loadPackageType === LoadPackageType.json ? loadJSONFromPackage : loadFromModule;
+      let loadFunction: (ModuleDefinition, ExecutionContextI) => any | Promise<any>;
+      if(pendingResolution.module.moduleResolution === ModuleResolution.json) {
+        loadFunction = loadJSONResource;
+      } else {
+        loadFunction = pendingResolution.loadPackageType === LoadPackageType.json ? loadJSONFromPackage : loadFromModule;
+      }
 
       const resultPromise: Promise<ModuleResolutionResult> = new Promise<ModuleResolutionResult>((resolve, reject) => {
         try {
@@ -156,6 +167,7 @@ export class ModuleResolver {
                 };
                 ModuleResolver.invokeSetter(result, ec)
                   .then(trueVal => {
+                    result.resolved = true;
                     resolve(result);
                   }, err => {
                     logErrorAndReturn(err, log, ec);
@@ -183,6 +195,7 @@ export class ModuleResolver {
             ModuleResolver.invokeSetter(result, ec)
               .then(trueVal => {
                 resolve(result);
+                result.resolved = true;
               }, err => {
                 logErrorAndReturn(err, log, ec);
                 result.resolved = false;

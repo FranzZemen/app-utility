@@ -1,6 +1,15 @@
 import chai from 'chai';
 import 'mocha';
-import {LoadPackageType, ModuleResolution, ModuleResolver, PendingModuleResolution} from '../publish/index.js';
+import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
+import {isPromise} from 'util/types';
+import {
+  CheckFunction,
+  loadJSONResource,
+  LoadPackageType, LoadSchema,
+  ModuleResolution,
+  ModuleResolver,
+  PendingModuleResolution
+} from '../publish/index.js';
 
 
 const should = chai.should();
@@ -11,7 +20,273 @@ const unreachableCode = false;
 describe('app-utility tests', () => {
   describe('module resolver tests', () => {
     describe('module-resolver', () => {
-      describe('loadPackageType=json', () => {
+      describe('module resolution = json', () => {
+        it('should load json with no schema check', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              (typeof testJsonObj).should.equal('object');
+              testJsonObj.name.should.exist;
+              testJsonObj.id.should.equal(1);
+              testJsonObj.name.should.equal('Franz');
+              testJsonObj.id.should.exist;
+            });
+        });
+
+        it('should load json with passing schema check', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json,
+              loadSchema: {
+                validationSchema: {
+                  name: {type: 'string'},
+                  id: {type: 'number'}
+                },
+                useNewCheckerFunction: false
+              }
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              expect(values[0].error).to.be.undefined;
+              values[0].resolved.should.be.true;
+              values[0].loaded.should.be.true;
+              (typeof testJsonObj).should.equal('object');
+              testJsonObj.name.should.exist;
+              testJsonObj.id.should.equal(1);
+              testJsonObj.name.should.equal('Franz');
+              testJsonObj.id.should.exist;
+            });
+        });
+
+        it('should load json with failing schema check', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json,
+              loadSchema: {
+                validationSchema: {
+                  name: {type: 'string'},
+                  id: {type: 'number'},
+                  doIt: {type: 'string'}
+                },
+                useNewCheckerFunction: false
+              }
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              values.length.should.equal(1);
+              const result = values[0];
+              expect(result.error).to.exist;
+              result.resolved.should.be.false;
+              result.loaded.should.be.false;
+            });
+        });
+        it('should load json with async schema check', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json,
+              loadSchema: {
+                validationSchema: {
+                  $$async: true,
+                  name: {type: 'string'},
+                  id: {type: 'number'},
+                  label: {
+                    type: 'string',
+                    custom: async (v, errors: ValidationError[]) => {
+                      if (v !== 'A') {
+                        errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
+                      }
+                      return v;
+                    }
+                  }
+                },
+                useNewCheckerFunction: true
+              }
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              expect(values[0].error).to.be.undefined;
+              values[0].resolved.should.be.true;
+              values[0].loaded.should.be.true;
+              (typeof testJsonObj).should.equal('object');
+              testJsonObj.name.should.exist;
+              testJsonObj.id.should.equal(1);
+              testJsonObj.name.should.equal('Franz');
+              testJsonObj.id.should.exist;
+            });
+        });
+        it('should load json with async schema fail', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json,
+              loadSchema: {
+                validationSchema: {
+                  $$async: true,
+                  name: {type: 'string'},
+                  id: {type: 'number'},
+                  label: {
+                    type: 'string',
+                    custom: async (v, errors: ValidationError[]) => {
+                      if (v !== 'B') {
+                        errors.push({
+                          type: 'unique',
+                          actual: v,
+                          field: 'label',
+                          expected: 'B',
+                          message: 'Wrong value for label'
+                        });
+                      }
+                      return v;
+                    }
+                  }
+                },
+                useNewCheckerFunction: true
+              }
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              values.length.should.equal(1);
+              const result = values[0];
+              expect(result.error).to.exist;
+              result.resolved.should.be.false;
+              result.loaded.should.be.false;
+            });
+        });
+
+        it('should load json with compiled async check', () => {
+          let testJsonObj;
+
+          function setJSON(_jsonObj): true {
+            testJsonObj = _jsonObj
+            return true;
+          }
+          const schema: ValidationSchema = {
+            $$async: true,
+            name: {type: 'string'},
+            id: {type: 'number'},
+            label: {
+              type: 'string',
+              custom: async (v, errors: ValidationError[]) => {
+                if (v !== 'A') {
+                  errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
+                }
+                return v;
+              }
+            }
+          };
+          const loadSchema: CheckFunction = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
+
+          const pendingResolution: PendingModuleResolution = {
+            ownerIsObject: false,
+            ownerThis: undefined,
+            ownerSetter: setJSON,
+            module: {
+              moduleName: '../testing/test-json.json',
+              moduleResolution: ModuleResolution.json,
+              loadSchema
+            },
+            loadPackageType: LoadPackageType.json
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const promise = resolver.resolve();
+          return promise
+            .then(values => {
+              expect(values[0].error).to.be.undefined;
+              values[0].resolved.should.be.true;
+              values[0].loaded.should.be.true;
+              (typeof testJsonObj).should.equal('object');
+              testJsonObj.name.should.exist;
+              testJsonObj.id.should.equal(1);
+              testJsonObj.name.should.equal('Franz');
+              testJsonObj.id.should.exist;
+            });
+        });
+      });
+
+      describe('loadPackageType=json and moduleResolution=es', () => {
         it('should resolve loading JSON from a package and setting an object', () => {
           class A {
             public jsonObj;

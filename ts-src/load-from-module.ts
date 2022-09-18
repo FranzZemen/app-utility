@@ -11,9 +11,9 @@ const requireModule = createRequire(import.meta.url);
 const objectPath = requireModule('object-path');
 
 export enum ModuleResolution {
-  commonjs = 'commonjs',
-  es = 'es',
-  json = 'json'
+  commonjs = 'commonjs', // Loading a commonjs module
+  es = 'es', // Loading an es module
+  json = 'json' // Loading a relative json file
 }
 
 export interface LoadSchema {
@@ -195,19 +195,23 @@ function validateSchema<T>(moduleName: string, moduleDef: ModuleDefinition, obj,
 export function loadJSONResource(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
   // JSON can always be loaded dynamically with require in both commonjs and es
-  const maybeJSON = requireModule(moduleDef.moduleName);
-  if (maybeJSON) {
-    // Protect from abuse
-    let jsonObject;
-    try {
-      jsonObject = JSON.parse(JSON.stringify(maybeJSON));
-    } catch (err) {
+  if(moduleDef.moduleResolution === ModuleResolution.json) {
+    const maybeJSON = requireModule(moduleDef.moduleName);
+    if (maybeJSON) {
+      // Protect from abuse
+      let jsonObject;
+      try {
+        jsonObject = JSON.parse(JSON.stringify(maybeJSON));
+      } catch (err) {
+        logErrorAndThrow(err, log, ec);
+      }
+      return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObject, ec);
+    } else {
+      const err = new Error(`${moduleDef.moduleName} does not point to a JSON string`);
       logErrorAndThrow(err, log, ec);
     }
-    return validateSchema<any>(moduleDef.moduleName, moduleDef,jsonObject, ec);
   } else {
-    const err = new Error(`${moduleDef.moduleName} does not point to a JSON string`);
-    logErrorAndThrow(err, log, ec);
+    logErrorAndThrow(new EnhancedError('module resolution must be json'));
   }
 }
 
