@@ -11,7 +11,8 @@ import {
   loadJSONResource,
   LoadSchema,
   ModuleDefinition,
-  ModuleResolution, TypeOf
+  ModuleResolution,
+  TypeOf
 } from '../publish/index.js';
 
 let should = chai.should();
@@ -69,7 +70,7 @@ describe('app-utility tests', () => {
           const result = loadFromModule<any>({
             moduleName: '../testing/bad-extended.cjs',
             moduleResolution: ModuleResolution.commonjs
-          }, undefined, undefined, undefined);
+          });
           unreachableCode.should.be.true;
         } catch (err) {
           err.should.exist;
@@ -80,7 +81,7 @@ describe('app-utility tests', () => {
           const result = loadFromModule<any>({
             moduleName: '../testing/bad-extended.cjs',
             moduleResolution: ModuleResolution.commonjs
-          }, undefined, undefined, undefined);
+          });
           result.should.exist;
         } catch (err) {
           unreachableCode.should.be.true;
@@ -91,7 +92,7 @@ describe('app-utility tests', () => {
           moduleName: '../testing/extended.js',
           functionName: 'create2',
           moduleResolution: ModuleResolution.es
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         return result.then(res => {
@@ -105,7 +106,7 @@ describe('app-utility tests', () => {
           moduleName: '../testing/extended.js',
           constructorName: 'TestDataType',
           moduleResolution: ModuleResolution.es
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         return result.then(res => {
@@ -121,14 +122,14 @@ describe('app-utility tests', () => {
 
       });
       it('should load json with no schema check', done => {
-        const testJsonObj: any = loadJSONResource('../testing/test-json.json', undefined, undefined);
+        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json});
         (typeof testJsonObj).should.equal('object');
         testJsonObj.name.should.exist;
         testJsonObj.id.should.exist;
         done();
       });
       it('should load json with passing schema check', () => {
-        const schema: LoadSchema = {
+        const loadSchema: LoadSchema = {
           validationSchema: {
             name: {type: 'string'},
             id: {type: 'number'}
@@ -136,7 +137,7 @@ describe('app-utility tests', () => {
           useNewCheckerFunction: false
         };
         try {
-          const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+          const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
           (typeof testJsonObj).should.equal('object');
           testJsonObj.name.should.exist;
           testJsonObj.id.should.exist;
@@ -146,7 +147,7 @@ describe('app-utility tests', () => {
         }
       });
       it('should load json with failing schema check', () => {
-        const schema: LoadSchema = {
+        const loadSchema: LoadSchema = {
           validationSchema: {
             name: {type: 'string'},
             id: {type: 'number'},
@@ -155,7 +156,7 @@ describe('app-utility tests', () => {
           useNewCheckerFunction: false
         };
         try {
-          const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+          const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
           unreachableCode.should.be.true;
         } catch (err) {
           console.error(err);
@@ -163,7 +164,7 @@ describe('app-utility tests', () => {
         }
       });
       it('should load json with async schema check', () => {
-        const schema: LoadSchema = {
+        const loadSchema: LoadSchema = {
           validationSchema: {
             $$async: true,
             name: {type: 'string'},
@@ -180,14 +181,14 @@ describe('app-utility tests', () => {
           },
           useNewCheckerFunction: true
         };
-        const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           obj.label.should.equal('A');
         });
       });
       it('should load json with async schema fail', () => {
-        const schema: LoadSchema = {
+        const loadSchema: LoadSchema = {
           validationSchema: {
             $$async: true,
             name: {type: 'string'},
@@ -210,7 +211,7 @@ describe('app-utility tests', () => {
           },
           useNewCheckerFunction: true
         };
-        const testJsonObj: any = loadJSONResource('../testing/test-json.json', schema, undefined);
+        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           unreachableCode.should.be.true;
@@ -234,8 +235,8 @@ describe('app-utility tests', () => {
             }
           }
         };
-        const check = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
-        const testJsonObj: any = loadJSONResource('../testing/test-json.json', check, undefined);
+        const loadSchema = (new Validator({useNewCustomCheckerFunction: true})).compile(schema);
+        const testJsonObj: any = loadJSONResource({moduleName: '../testing/test-json.json', moduleResolution: ModuleResolution.json, loadSchema});
         isPromise(testJsonObj).should.be.true;
         return testJsonObj.then(obj => {
           obj.label.should.equal('A');
@@ -253,7 +254,7 @@ describe('app-utility tests', () => {
           functionName: 'create2',
           moduleResolution: ModuleResolution.es,
           loadSchema: schema
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         return result.then(res => {
@@ -275,7 +276,7 @@ describe('app-utility tests', () => {
           functionName: 'create2',
           moduleResolution: ModuleResolution.es,
           loadSchema: schema
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         return result.then(res => {
@@ -289,7 +290,7 @@ describe('app-utility tests', () => {
           moduleName: '../testing/extended.js',
           functionName: 'foo.bar',
           moduleResolution: ModuleResolution.es
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         return result.then(res => {
@@ -359,9 +360,10 @@ describe('app-utility tests', () => {
         const moduleDef: ModuleDefinition = {
           moduleName: '@franzzemen/test',
           functionName:'getObjWithParameters',
-          moduleResolution: ModuleResolution.es
+          moduleResolution: ModuleResolution.es,
+          paramsArray: ['year', 1999]
         }
-        const objPromise = loadFromModule(moduleDef, ['year', 1999]);
+        const objPromise = loadFromModule(moduleDef);
         objPromise.should.exist;
         if (isPromise(objPromise)) {
           objPromise
@@ -379,8 +381,9 @@ describe('app-utility tests', () => {
         const result = loadFromModule<string>({
           moduleName: '../testing/extended.js',
           functionName: 'createString',
-          moduleResolution: ModuleResolution.es
-        }, undefined, TypeOf.String, undefined);
+          moduleResolution: ModuleResolution.es,
+          loadSchema: TypeOf.String
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
@@ -398,8 +401,9 @@ describe('app-utility tests', () => {
         const result = loadFromModule<string>({
           moduleName: '../testing/extended.js',
           functionName: 'createString',
-          moduleResolution: ModuleResolution.es
-        }, undefined, TypeOf.Number, undefined);
+          moduleResolution: ModuleResolution.es,
+          loadSchema: TypeOf.Number
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
@@ -418,7 +422,7 @@ describe('app-utility tests', () => {
           functionName: 'createString',
           moduleResolution: ModuleResolution.es,
           loadSchema: TypeOf.String
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
@@ -438,7 +442,7 @@ describe('app-utility tests', () => {
           functionName: 'createString',
           moduleResolution: ModuleResolution.es,
           loadSchema: TypeOf.Number
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
@@ -457,7 +461,7 @@ describe('app-utility tests', () => {
           functionName: 'createNumber',
           moduleResolution: ModuleResolution.es,
           loadSchema: TypeOf.Number
-        }, undefined, undefined, undefined);
+        });
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
@@ -477,7 +481,7 @@ describe('app-utility tests', () => {
             functionName: 'createString',
             moduleResolution: ModuleResolution.es,
             loadSchema: TypeOf.Number
-          }, undefined, undefined, ec);
+          });
           unreachableCode.should.be.true;
         } catch (err) {
           err.should.exist;
@@ -489,7 +493,7 @@ describe('app-utility tests', () => {
             moduleName: '../testing/bad-extended.cjs',
             moduleResolution: ModuleResolution.commonjs,
             functionName: 'createAsyncFunc'
-          }, undefined, undefined, undefined);
+          });
           if(isPromise(result)) {
             return result
               .then(someResult => {
@@ -509,7 +513,7 @@ describe('app-utility tests', () => {
             moduleName: '../testing/bad-extended.cjs',
             moduleResolution: ModuleResolution.commonjs,
             functionName: 'createAsyncFunc'
-          }, undefined, undefined, ec);
+          }, ec);
           unreachableCode.should.be.true;
         } catch (err) {
           err.should.exist;

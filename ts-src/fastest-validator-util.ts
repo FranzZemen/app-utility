@@ -8,7 +8,7 @@ export function isLoadSchema(schema: any | LoadSchema): schema is LoadSchema {
 export type CheckFunction = AsyncCheckFunction | SyncCheckFunction;
 
 export function isCheckFunction(check: any | CheckFunction): check is CheckFunction {
-  return 'async' in check;
+  return check !== undefined && 'async' in check;
 }
 
 export function isAsyncCheckFunction(check: any | CheckFunction): check is AsyncCheckFunction {

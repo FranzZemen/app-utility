@@ -126,7 +126,16 @@ export class Hints extends Map<string, string | Object> {
     while((match = nvRegex.exec(hintsCopy)) !== null) {
       const resource = match[2].trim();
       try {
-        const json = loadJSONResource(resource,undefined, ec);
+        const moduleDef: ModuleDefinition = {
+          moduleName: resource,
+          moduleResolution: ModuleResolution.json
+        }
+        const json = loadJSONResource(moduleDef,ec);
+        if(isPromise(json)) {
+          // It shouldn't be returning a promise.  If that ever changes, then follow the same pattern as for module definitions; we want to
+          // parse synchronously
+          logErrorAndThrow(new EnhancedError('Should not be returning a promise as we do not provide a check function'), log, ec);
+        }
         super.set(match[1], json);
       } catch (err) {
         const error = new Error(`Cannot load JSON from relative path ${resource}`);
@@ -166,7 +175,7 @@ export class Hints extends Map<string, string | Object> {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
 
-    // Locate name, JSON from package/functions/attributes. Creates an async result from loading by import (vs require for commmonjs)
+    // Locate name, JSON from package/functions/attributes. Only creates the module definition.  Does not load the JSON inline for ES modules
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\((require|import):([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
     match = undefined;
     matchBoundaries =[];
@@ -187,16 +196,18 @@ export class Hints extends Map<string, string | Object> {
       } else {
         functionName = match[5].trim();
       }
-      jsonLoads.push({key: match[1].trim(), moduleDef: {moduleName, functionName, propertyName, moduleResolution}});
+      //super.set(match[1].trim(), {module})
+     jsonLoads.push({key: match[1].trim(), moduleDef: {moduleName, functionName, propertyName, moduleResolution}});
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
     }
     // Build a new string removing prior results, which are sorted in reverse index
     matchBoundaries.forEach(boundary => {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
+
+
     // Match unary...nothing left other than that, makes reg exp easy
     nvRegex = /\b([a-z0-9]+[-a-z0-9]*[a-z0-9]+)/g;
-
     match = undefined;
     matchBoundaries =[];
     while((match = nvRegex.exec(hintsCopy)) !== null) {
@@ -211,7 +222,7 @@ export class Hints extends Map<string, string | Object> {
       const promises: (Object | Promise<Object>)[] = [];
       jsonLoads.forEach(load => {
         try {
-          promises.push(loadJSONFromPackage(load.moduleDef, undefined, ec));
+          promises.push(loadJSONFromPackage(load.moduleDef, ec));
         } catch (err) {
           const error = new Error(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`);
           log.error(err);
@@ -242,7 +253,7 @@ export class Hints extends Map<string, string | Object> {
     } else {
       jsonLoads.forEach(load => {
         try {
-          let jsonObj: Object  = loadJSONFromPackage(load.moduleDef, undefined, ec);
+          let jsonObj: Object  = loadJSONFromPackage(load.moduleDef,  ec);
           this.set(load.key, jsonObj);
         } catch (err) {
           const error = new EnhancedError(`Cannot load JSON from module ${load.moduleDef.moduleName} and function ${load.moduleDef.functionName} or property ${load.moduleDef.propertyName}`, err);
