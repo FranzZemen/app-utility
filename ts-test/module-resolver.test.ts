@@ -374,7 +374,7 @@ describe('app-utility tests', () => {
             public num;
             public str;
 
-            setJSON(refName, jsonObj, aNum, aStr) {
+            setJSON(refName, jsonObj, result, aNum, aStr) {
               this.jsonObj = jsonObj;
               this.num = aNum;
               this.str = aStr;
@@ -458,7 +458,7 @@ describe('app-utility tests', () => {
           let num: number;
           let str: string;
 
-          function setJSON(refName, _jsonObj, aNum, aStr): true {
+          function setJSON(refName, _jsonObj,result, aNum, aStr): true {
             jsonObj = _jsonObj;
             num = aNum;
             str = aStr;

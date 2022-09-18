@@ -3,7 +3,7 @@ import {EnhancedError, logErrorAndReturn, logErrorAndThrow} from './enhanced-err
 import {ExecutionContextI} from './execution-context.js';
 import {loadJSONFromPackage, loadJSONResource, ModuleDefinition, ModuleResolution} from './load-from-module.js';
 import {LoggerAdapter} from './log/index.js';
-import {LoadPackageType, ModuleResolutionSetter, ModuleResolver} from './module-resolver.js';
+import {LoadPackageType, ModuleResolutionResult, ModuleResolutionSetter, ModuleResolver} from './module-resolver.js';
 
 export type Fragment = { frag: string, start: number, end?: number }
 
@@ -13,7 +13,7 @@ export class Hints extends Map<string, string | Object> {
 
 
   // For use by ModuleResolver
-  setHint: ModuleResolutionSetter = (key: string, value: any, ec?: ExecutionContextI) => {
+  setHint: ModuleResolutionSetter = (key: string, value: any, result: ModuleResolutionResult, ec?: ExecutionContextI) => {
     super.set(key, value);
     return true;
   }

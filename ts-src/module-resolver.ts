@@ -15,7 +15,7 @@ export enum LoadPackageType {
   package = 'object'
 }
 
-export type ModuleResolutionSetter = ((refName: any, result: any, ...params) => true | Promise<true>);
+export type ModuleResolutionSetter = ((refName: any, result: any, def?: ModuleResolutionResult,  ...params) => true | Promise<true>);
 
 
 export interface PendingModuleResolution {
@@ -30,7 +30,7 @@ export interface PendingModuleResolution {
   loadPackageType?: LoadPackageType;
 }
 
-interface ModuleResolutionResult {
+export interface ModuleResolutionResult {
   resolution: PendingModuleResolution;
   // Module/value etc. was loaded
   loaded: boolean;
@@ -59,9 +59,9 @@ export class ModuleResolver {
         let setterResult: true | Promise<true>;
         try {
           if (result.resolution.paramsArray) {
-            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject, ...result.resolution.paramsArray);
+            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject, result, ...result.resolution.paramsArray);
           } else {
-            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject);
+            setterResult = result.resolution.ownerThis[result.resolution.ownerSetter](result.resolution.refName, result.resolvedObject, result);
           }
         } catch (err) {
           log.warn(result, `Setter could not be successfully invoked`);
@@ -106,9 +106,9 @@ export class ModuleResolver {
         let setterResult: any | Promise<any>;
         try {
           if (result.resolution.paramsArray) {
-            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject, ...result.resolution.paramsArray);
+            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject, result, ...result.resolution.paramsArray);
           } else {
-            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject);
+            setterResult = result.resolution.ownerSetter(result.resolution.refName, result.resolvedObject, result);
           }
         } catch (err) {
           log.warn(result, `Setter could not be successfully invoked`);
