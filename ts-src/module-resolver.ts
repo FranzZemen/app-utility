@@ -470,7 +470,11 @@ export class ModuleResolver {
     }
   }
 
-  hasResolutionErrors() {
+  hasResolutionErrors(): boolean {
     return this.moduleResolutionResults.some(moduleResolutionResult => moduleResolutionResult.loadingResult?.error || moduleResolutionResult.setterResult?.error || moduleResolutionResult.actionResult?.error);
+  }
+
+  static resolutionsHaveErrors(resolutions: ModuleResolutionResult[]): boolean {
+    return resolutions.some(resolution => resolution.loadingResult?.error || resolution.setterResult?.error || resolution.actionResult?.error);
   }
 }
