@@ -259,7 +259,7 @@ export class Hints extends Map<string, string | Object> {
   static parseHints(moduleResolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
-  }): [string, Hints | Promise<Hints>] {
+  }): [string, Hints] {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'parseHints');
     Hints.validatePrefix(near, prefix, ec);
     const hints = Hints.captureHints(moduleResolver, near, prefix, ec, enclosure);
