@@ -125,7 +125,7 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse with wraps <<some-prefix key=value>>', () => {
-    const [remaining, hintsOrPromise] = Hints.parseHints('<<some-prefix key=value>>', 'some-prefix');
+    const [remaining, hintsOrPromise] = Hints.parseAndResolveHints('<<some-prefix key=value>>', 'some-prefix');
     if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
       return
@@ -255,8 +255,8 @@ describe('Hint Tests', () => {
     }
   });
 
-  it('should parseHints complex JSON array with folder spec [{foo: {bar: [1, 2, true]}}, {some: "../folder"}]', () => {
-    const [remaining, hintsOrPromise] = Hints.parseHints('<<re complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value>>', 're');
+  it('should parseAndResolveHints complex JSON array with folder spec [{foo: {bar: [1, 2, true]}}, {some: "../folder"}]', () => {
+    const [remaining, hintsOrPromise] = Hints.parseAndResolveHints('<<re complex-json-array = [{"foo": {"bar": [1, 2, true]}}, {"some": "../folder"}] key=value>>', 're');
     if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
@@ -270,7 +270,7 @@ describe('Hint Tests', () => {
   });
 
   it('should load JSON from relative path ', () => {
-    const [remaining, hintsOrPromise] = Hints.parseHints('<<re json = @(require:../testing/hints/test.json)>>', 're');
+    const [remaining, hintsOrPromise] = Hints.parseAndResolveHints('<<re json = @(require:../testing/hints/test.json)>>', 're');
     if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
@@ -283,7 +283,7 @@ describe('Hint Tests', () => {
   });
 
   it('should load JSON from module/function ', () => {
-    const [remaining, hintsOrPromise] = Hints.parseHints('<<re json = @(import:@franzzemen/test=>getJSON)>>', 're');
+    const [remaining, hintsOrPromise] = Hints.parseAndResolveHints('<<re json = @(import:@franzzemen/test=>getJSON)>>', 're');
     if(isPromise(hintsOrPromise)) {
       return hintsOrPromise
         .then(hints => {
@@ -300,7 +300,7 @@ describe('Hint Tests', () => {
     }
   });
   it('should load JSON from module/attribute ', () => {
-    const [remaining, hintsOrPromise]= Hints.parseHints('<<re json = @(import:@franzzemen/test:jsonStr)>>', 're');
+    const [remaining, hintsOrPromise]= Hints.parseAndResolveHints('<<re json = @(import:@franzzemen/test:jsonStr)>>', 're');
     if(isPromise(hintsOrPromise)) {
       return hintsOrPromise
         .then(hints => {
@@ -315,7 +315,7 @@ describe('Hint Tests', () => {
     }
   });
   it('should parse folder paths without quotes (without spaces) ', () => {
-    const [remaining, hintsOrPromise] = Hints.parseHints('<<re path=./../../some-_Path>>', 're');
+    const [remaining, hintsOrPromise] = Hints.parseAndResolveHints('<<re path=./../../some-_Path>>', 're');
     if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {

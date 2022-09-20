@@ -24,10 +24,11 @@ export class Hints extends Map<string, string | Object> {
     return true;
   }
 
-  initActionResolution: ModuleResolutionActionInvocation = (successfulResolution: boolean, ec?) => {
-    if(successfulResolution === true) {
-      this.initialized = true;
-    }
+  initActionResolution: ModuleResolutionActionInvocation = (successfulResolution: boolean, prefix: string, ec?: ExecutionContextI) => {
+    // Regardless over overall success, that this method is called means that all module resoltuions associated with this
+    // instance were satisfied.
+    this.initialized = true;
+    this.setPrefix(prefix);
     return true;
   }
 
@@ -40,7 +41,7 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  public load(moduleResolver: ModuleResolver, ec?: ExecutionContextI) {
+  public load(moduleResolver: ModuleResolver, prefix: string, ec?: ExecutionContextI) {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'loadAndInitialize');
     // Locate name, value pairs with JSON
     let nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*([\[{][^]*[}|\]])/g;
@@ -124,7 +125,6 @@ export class Hints extends Map<string, string | Object> {
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*@\((require|import):([a-zA-Z0-9 @./\\-_]+)(:|=>)([a-zA-Z0-9_.\[\]"']+)\)/g;
     match = undefined;
     matchBoundaries = [];
-
     while ((match = nvRegex.exec(hintsCopy)) !== null) {
       const key = match[1].trim();
       const importStatement = match[2].trim();
@@ -140,6 +140,7 @@ export class Hints extends Map<string, string | Object> {
       } else {
         functionName = match[5].trim();
       }
+     // We need to allow module resolver to just have an action...because here init will only be called if there's a module loaded and we need to set prefix once and abosulately once
       moduleResolver.add({
         refName: key,
         loader: {
@@ -162,7 +163,7 @@ export class Hints extends Map<string, string | Object> {
           ownerIsObject: true,
           objectRef: this,
           actionFunction: 'initActionResolution',
-          paramsArray: [ec]
+          paramsArray: [prefix, ec]
         }
       });
       matchBoundaries.unshift({start: match.index, end: nvRegex.lastIndex});
@@ -184,19 +185,31 @@ export class Hints extends Map<string, string | Object> {
     matchBoundaries.forEach(boundary => {
       hintsCopy = hintsCopy.substring(0, boundary.start) + hintsCopy.substring(boundary.end);
     });
+    // Regardless of whether we loaded anything or not, we are in the ModuleResolver's world and
+    // need to guarantee this object is initialized, but use same dedupid
+    moduleResolver.add({
+      refName: 'all',
+      action: {
+        dedupId: this.resolverDedupId,
+        ownerIsObject: true,
+        objectRef: this,
+        actionFunction: 'initActionResolution',
+        paramsArray: [prefix, ec]
+      }
+    });
   }
 
 
-  public loadAndResolve(ec?: ExecutionContextI): Hints | Promise<Hints> {
+  public loadAndResolve(prefix?: string, ec?: ExecutionContextI): Hints | Promise<Hints> {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'loadAndResolve');
     const moduleResolver = new ModuleResolver();
-    this.load(moduleResolver, ec);
+    this.load(moduleResolver, prefix, ec);
     if(moduleResolver.hasPendingResolutions()) {
       const results = moduleResolver.resolve(ec);
       if(isPromise(results)) {
         return results
           .then(resolutions => {
-            const someErrors = resolutions.some(resolution => resolution.setterResult.error || resolution.loadingResult.error);
+            const someErrors = ModuleResolver.resolutionsHaveErrors(resolutions);
             if(someErrors) {
               log.warn(resolutions, 'Errors resolving modules');
               throw logErrorAndReturn(new EnhancedError('Errors resolving modules'));
@@ -222,7 +235,7 @@ export class Hints extends Map<string, string | Object> {
     end: '>>'
   }): Hints | Promise<Hints> {
     Hints.validatePrefix(near, prefix, ec);
-    return Hints.captureHints(near, prefix, ec, enclosure);
+    return Hints.captureAndResolveHints(near, prefix, ec, enclosure);
   }
 
   static consumeHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
@@ -243,18 +256,55 @@ export class Hints extends Map<string, string | Object> {
     }
   }
 
-  static parseHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+  static parseHints(moduleResolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
   }): [string, Hints | Promise<Hints>] {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'parseHints');
-    this.validatePrefix(near, prefix, ec);
-    const hintsResult = Hints.captureHints(near, prefix, ec, enclosure);
+    Hints.validatePrefix(near, prefix, ec);
+    const hints = Hints.captureHints(moduleResolver, near, prefix, ec, enclosure);
+    let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
+    return [remaining, hints];
+  }
+
+  static parseAndResolveHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+    start: '<<',
+    end: '>>'
+  }): [string, Hints | Promise<Hints>] {
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'parseHints');
+    Hints.validatePrefix(near, prefix, ec);
+    const hintsResult = Hints.captureAndResolveHints(near, prefix, ec, enclosure);
     let remaining = Hints.consumeHints(near, prefix, ec, enclosure);
     return [remaining, hintsResult];
   }
 
-  private static captureHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+  setPrefix(prefix: string) {
+    if (prefix && prefix.trim().length > 0) {
+      super.set(prefix, prefix);
+      super.set('prefix', prefix);
+    }
+  }
+
+  private static captureHints(moduleResolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+    start: '<<',
+    end: '>>'
+  }): Hints {
+    const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'captureHints');
+    const regExp = new RegExp(`^${enclosure.start}${prefix}([-\\s\\t\\r\\n\\v\\f\\u2028\\u2029".,=>:\(\)@\\[\\]{}/_a-zA-Z0-9]*)${enclosure.end}[^]*$`);
+    const result = regExp.exec(near);
+    if (result) {
+      const hints: Hints = new Hints(result[1].trim(), ec);
+      hints.load(moduleResolver, prefix, ec);
+      return hints;
+    } else {
+      log.debug(`Did not find hints near ${near}`);
+      const hints = new Hints('', ec);
+      hints.loadAndResolve('', ec);
+      return hints;
+    }
+  }
+
+  private static captureAndResolveHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
   }): Hints | Promise<Hints> {
@@ -263,29 +313,11 @@ export class Hints extends Map<string, string | Object> {
     const result = regExp.exec(near);
     if (result) {
       const hints: Hints = new Hints(result[1].trim(), ec);
-      const resolutionResult = hints.loadAndResolve(ec);
-      if (isPromise(resolutionResult)) {
-        return resolutionResult
-          .then(() => {
-            if (prefix && prefix.trim().length > 0) {
-              hints.set(prefix, prefix);
-              hints.set('prefix', prefix);
-            }
-            log.debug(hints, `Found hints near ${near}`);
-            return hints;
-          });
-      } else {
-        if (prefix && prefix.trim().length > 0) {
-          hints.set(prefix, prefix);
-          hints.set('prefix', prefix);
-        }
-        log.debug(hints, `Found hints near ${near}`);
-        return hints;
-      }
+      return hints.loadAndResolve(prefix, ec);
     } else {
       log.debug(`Did not find hints near ${near}`);
       const hints = new Hints('', ec);
-      hints.loadAndResolve(ec);
+      hints.loadAndResolve('', ec);
       return hints;
     }
   }
