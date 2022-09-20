@@ -15,7 +15,10 @@ export type Fragment = { frag: string, start: number, end?: number }
 
 export class Hints extends Map<string, string | Object> {
   hintBody: string;
+  // Hints are fully initialized, including asynchronous elements
   initialized = false;
+  // Hints are loaded, not necessarily including asynchronous elements.
+  loaded = false;
   resolverDedupId = uuidv4();
 
   // For use by ModuleResolver
@@ -28,7 +31,10 @@ export class Hints extends Map<string, string | Object> {
     // Regardless over overall success, that this method is called means that all module resoltuions associated with this
     // instance were satisfied.
     this.initialized = true;
-    this.setPrefix(prefix);
+    if (prefix && prefix.trim().length > 0) {
+      super.set(prefix, prefix);
+      super.set('prefix', prefix);
+    }
     return true;
   }
 
@@ -41,7 +47,7 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  public load(moduleResolver: ModuleResolver, prefix: string, ec?: ExecutionContextI) {
+  private load(moduleResolver: ModuleResolver, prefix: string, ec?: ExecutionContextI) {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'loadAndInitialize');
     // Locate name, value pairs with JSON
     let nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*([\[{][^]*[}|\]])/g;
@@ -197,10 +203,11 @@ export class Hints extends Map<string, string | Object> {
         paramsArray: [prefix, ec]
       }
     });
+    this.loaded = true;
   }
 
 
-  public loadAndResolve(prefix?: string, ec?: ExecutionContextI): Hints | Promise<Hints> {
+  loadAndResolve(prefix?: string, ec?: ExecutionContextI): Hints | Promise<Hints> {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'loadAndResolve');
     const moduleResolver = new ModuleResolver();
     this.load(moduleResolver, prefix, ec);
@@ -278,13 +285,6 @@ export class Hints extends Map<string, string | Object> {
     return [remaining, hintsResult];
   }
 
-  setPrefix(prefix: string) {
-    if (prefix && prefix.trim().length > 0) {
-      super.set(prefix, prefix);
-      super.set('prefix', prefix);
-    }
-  }
-
   private static captureHints(moduleResolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
@@ -333,8 +333,6 @@ export class Hints extends Map<string, string | Object> {
   }
 
 
-
-
   mergeInto(oHints: Hints, replace = false, ec?: ExecutionContextI) {
     this.checkInit();
     let next;
@@ -353,9 +351,11 @@ export class Hints extends Map<string, string | Object> {
 
   checkInit(ec?: ExecutionContextI) {
     if (!this.initialized) {
-      const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'checkInit');
-      const err = new EnhancedError('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
-      logErrorAndThrow(err, log, ec);
+      if (!this.loaded) {
+        const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'checkInit');
+        const err = new EnhancedError('Uninitialized Hints.  Either call init() or wait for settled promise; this can happen if Hints include loading JSON from an esModule');
+        logErrorAndThrow(err, log, ec);
+      }
     }
   }
 
