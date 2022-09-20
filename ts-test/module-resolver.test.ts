@@ -529,7 +529,7 @@ describe('app-utility tests', () => {
                 str.should.equal('abc');
                 resolver.clear();
                 resolver.pendingResolutions.length.should.equal(0);
-                resolver.moduleResolutionPromises.length.should.equal(0);
+                resolver.moduleResolutionResults.length.should.equal(0);
               }, err => {
                 console.log(err);
                 unreachableCode.should.be.false;

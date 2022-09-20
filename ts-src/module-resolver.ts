@@ -106,8 +106,7 @@ export interface ModuleResolutionResult {
 
 export class ModuleResolver {
   pendingResolutions: PendingModuleResolution[] = [];
-  moduleResolutionPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[] = [];
-  moduleResolutionActions: ModuleResolutionAction[];
+  moduleResolutionResults: ModuleResolutionResult[] = [];
   isResolving = false;
 
   constructor() {
@@ -188,7 +187,7 @@ export class ModuleResolver {
   }
 
   hasPendingResolutions(): boolean {
-    return (this.pendingResolutions.length > 0 && this.moduleResolutionPromises.length === 0);
+    return (this.pendingResolutions.length != this.moduleResolutionResults.length);
   }
 
   add(pendingResolution: PendingModuleResolution, ec?: ExecutionContextI) {
@@ -212,20 +211,18 @@ export class ModuleResolver {
       this.isResolving = false;
       return [];
     }
-    if (!this.moduleResolutionPromises) {
-      this.moduleResolutionPromises = [];
+    if (!this.moduleResolutionResults) {
+      this.moduleResolutionResults = [];
     }
     // The resolver may be resolving incrementally.  Only work on pending resolutions that haven't yet been resolved.
     let pendingResolutions: PendingModuleResolution[];
-    let moduleResolutionPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[];
+    let moduleResolutionPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[] = [];
     let incremental = false;
-    if(this.moduleResolutionPromises.length > 0 && this.pendingResolutions.length > this.moduleResolutionPromises.length) {
-      pendingResolutions = this.pendingResolutions.slice(this.moduleResolutionPromises.length - 1);
-      moduleResolutionPromises = [];
+    if(this.moduleResolutionResults.length > 0 && this.pendingResolutions.length > this.moduleResolutionResults.length) {
+      pendingResolutions = this.pendingResolutions.slice(this.moduleResolutionResults.length - 1);
       incremental = true;
     } else {
       pendingResolutions = this.pendingResolutions;
-      moduleResolutionPromises = this.moduleResolutionPromises;
     }
 
 
@@ -320,14 +317,18 @@ export class ModuleResolver {
               return actionResultOrPromise
                 .then((trueVal:true) => {
                   if (incremental) {
-                    this.moduleResolutionPromises = this.moduleResolutionPromises.concat(moduleResolutionPromises);
+                    this.moduleResolutionResults = this.moduleResolutionResults.concat(values);
+                  } else {
+                    this.moduleResolutionResults = values;
                   }
                   this.isResolving = false;
                   return values;
                 })
             } else {
               if (incremental) {
-                this.moduleResolutionPromises = this.moduleResolutionPromises.concat(moduleResolutionPromises);
+                this.moduleResolutionResults = this.moduleResolutionResults.concat(values);
+              } else {
+                this.moduleResolutionResults = values;
               }
               this.isResolving = false;
               return values
@@ -346,14 +347,18 @@ export class ModuleResolver {
         return actionResultOrPromise
           .then((trueVal:true) => {
             if (incremental) {
-              this.moduleResolutionPromises = this.moduleResolutionPromises.concat(moduleResolutionPromises);
+              this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionPromises as ModuleResolutionResult[]);
+            } else {
+              this.moduleResolutionResults = moduleResolutionPromises as ModuleResolutionResult[];
             }
             this.isResolving = false;
             return Promise.all(moduleResolutionPromises);
           });
       } else {
         if (incremental) {
-          this.moduleResolutionPromises = this.moduleResolutionPromises.concat(moduleResolutionPromises);
+          this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionPromises as ModuleResolutionResult[])
+        } else {
+          this.moduleResolutionResults = moduleResolutionPromises as ModuleResolutionResult[];
         }
         this.isResolving = false;
         return moduleResolutionPromises as ModuleResolutionResult[];
@@ -366,7 +371,7 @@ export class ModuleResolver {
       logErrorAndThrow(new EnhancedError(`Cannot clear while isResolving is ${this.isResolving}`), new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'add'), ec);
     }
     this.pendingResolutions = [];
-    this.moduleResolutionPromises = [];
+    this.moduleResolutionResults = [];
   }
 
   private invokeActions(moduleResolutionResults: (ModuleResolutionResult)[], ec?: ExecutionContextI): true | Promise<true> {
@@ -463,5 +468,9 @@ export class ModuleResolver {
     } else {
       return true;
     }
+  }
+
+  hasResolutionErrors() {
+    return this.moduleResolutionResults.some(moduleResolutionResult => moduleResolutionResult.loadingResult?.error || moduleResolutionResult.setterResult?.error || moduleResolutionResult.actionResult?.error);
   }
 }
