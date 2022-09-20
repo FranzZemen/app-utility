@@ -47,7 +47,7 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  private load(moduleResolver: ModuleResolver, prefix: string, ec?: ExecutionContextI) {
+  public load(moduleResolver: ModuleResolver, prefix: string, ec?: ExecutionContextI) {
     const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'loadAndInitialize');
     // Locate name, value pairs with JSON
     let nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*([\[{][^]*[}|\]])/g;
