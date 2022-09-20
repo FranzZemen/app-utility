@@ -143,7 +143,7 @@ describe('app-utility tests', () => {
                   useNewCheckerFunction: false
                 }
               },
-            loadPackageType: LoadPackageType.json
+              loadPackageType: LoadPackageType.json
             }
           };
           const resolver = new ModuleResolver();
@@ -316,7 +316,7 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON,
+              setterFunction: setJSON
             },
             loader: {
               module: {
@@ -340,7 +340,7 @@ describe('app-utility tests', () => {
               testJsonObj.id.should.equal(1);
               testJsonObj.name.should.equal('Franz');
               testJsonObj.id.should.exist;
-            })
+            });
           } else {
             unreachableCode.should.be.true;
           }
@@ -364,7 +364,7 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: true,
               objectRef: a,
-              setterFunction: 'setJSON',
+              setterFunction: 'setJSON'
             },
             loader: {
               module: {
@@ -423,7 +423,7 @@ describe('app-utility tests', () => {
                 moduleResolution: ModuleResolution.es
               },
               loadPackageType: LoadPackageType.json
-            },
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -492,7 +492,7 @@ describe('app-utility tests', () => {
           let num: number;
           let str: string;
 
-          function setJSON(refName, _jsonObj,result, aNum, aStr): true {
+          function setJSON(refName, _jsonObj, result, aNum, aStr): true {
             jsonObj = _jsonObj;
             num = aNum;
             str = aStr;
@@ -514,7 +514,7 @@ describe('app-utility tests', () => {
                 moduleResolution: ModuleResolution.es
               },
               loadPackageType: LoadPackageType.json
-            },
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -551,8 +551,9 @@ describe('app-utility tests', () => {
               refName: 'myA',
               setter: {
                 ownerIsObject: false,
-              objectRef: undefined,
-              setterFunction: setObj}
+                objectRef: undefined,
+                setterFunction: setObj
+              }
               ,
               loader: {
                 module: {
@@ -598,8 +599,8 @@ describe('app-utility tests', () => {
               refName: 'myA',
               setter: {
                 ownerIsObject: false,
-              objectRef: undefined,
-              setterFunction: setObj
+                objectRef: undefined,
+                setterFunction: setObj
               },
               loader: {
                 module: {
@@ -618,12 +619,192 @@ describe('app-utility tests', () => {
                 values.length.should.equal(1);
                 const result = values[0];
                 expect(result.loadingResult.resolvedObject).to.equal(50);
-              })
+              });
             } else {
               unreachableCode.should.be.true;
 
             }
           });
+        });
+        it('should invoke action', () => {
+          let testJsonObj;
+          let refName: string;
+
+          function setJSON(_refName: string, _jsonObj): true {
+            testJsonObj = _jsonObj;
+            refName = _refName;
+            return true;
+          }
+
+          let actionCount = 0;
+
+          function action(allSuccess: boolean, ec): true {
+            actionCount++;
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
+            },
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json
+              },
+              loadPackageType: LoadPackageType.json
+            },
+            action: {
+              dedupId: 'actionTest',
+              actionFunction: action,
+              objectRef: undefined,
+              ownerIsObject: false
+            }
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                unreachableCode.should.be.true;
+              });
+          } else {
+            refName.should.equal('myJSONObj');
+            (typeof testJsonObj).should.equal('object');
+            testJsonObj.name.should.exist;
+            testJsonObj.id.should.equal(1);
+            testJsonObj.name.should.equal('Franz');
+            testJsonObj.id.should.exist;
+            actionCount.should.equal(1);
+          }
+        });
+        it('should invoke action only once', () => {
+          let testJsonObj;
+          let refName: string;
+
+          function setJSON(_refName: string, _jsonObj): true {
+            testJsonObj = _jsonObj;
+            refName = _refName;
+            return true;
+          }
+
+          let actionCount = 0;
+
+          function action(allSuccess: boolean, ec): true {
+            actionCount++;
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
+            },
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json
+              },
+              loadPackageType: LoadPackageType.json
+            },
+            action: {
+              dedupId: 'actionTest',
+              actionFunction: action,
+              objectRef: undefined,
+              ownerIsObject: false
+            }
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          resolver.add(pendingResolution);
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                unreachableCode.should.be.true;
+              });
+          } else {
+            refName.should.equal('myJSONObj');
+            (typeof testJsonObj).should.equal('object');
+            testJsonObj.name.should.exist;
+            testJsonObj.id.should.equal(1);
+            testJsonObj.name.should.equal('Franz');
+            testJsonObj.id.should.exist;
+            actionCount.should.equal(1);
+          }
+        });
+        it('should invoke action only once with independent action', () => {
+          let testJsonObj;
+          let refName: string;
+
+          function setJSON(_refName: string, _jsonObj): true {
+            testJsonObj = _jsonObj;
+            refName = _refName;
+            return true;
+          }
+
+          let actionCount = 0;
+
+          function action(allSuccess: boolean, ec): true {
+            actionCount++;
+            return true;
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            refName: 'myJSONObj',
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
+            },
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json
+              },
+              loadPackageType: LoadPackageType.json
+            },
+            action: {
+              dedupId: 'actionTest',
+              actionFunction: action,
+              objectRef: undefined,
+              ownerIsObject: false
+            }
+          };
+          const pendingResolution2: PendingModuleResolution = {
+            refName: 'actionTest1',
+            action: {
+              dedupId: 'actionTest',
+              actionFunction: action,
+              objectRef: undefined,
+              ownerIsObject: false
+            }
+          };
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          resolver.add(pendingResolution);
+          resolver.add(pendingResolution2);
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(values => {
+                unreachableCode.should.be.true;
+              });
+          } else {
+            refName.should.equal('myJSONObj');
+            (typeof testJsonObj).should.equal('object');
+            testJsonObj.name.should.exist;
+            testJsonObj.id.should.equal(1);
+            testJsonObj.name.should.equal('Franz');
+            testJsonObj.id.should.exist;
+            actionCount.should.equal(1);
+          }
         });
       });
     });
