@@ -33,14 +33,18 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -71,21 +75,25 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json,
-              loadSchema: {
-                validationSchema: {
-                  name: {type: 'string'},
-                  id: {type: 'number'}
-                },
-                useNewCheckerFunction: false
-              }
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json,
+                loadSchema: {
+                  validationSchema: {
+                    name: {type: 'string'},
+                    id: {type: 'number'}
+                  },
+                  useNewCheckerFunction: false
+                }
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -93,9 +101,9 @@ describe('app-utility tests', () => {
           if (isPromise(resultOrPromise)) {
             unreachableCode.should.be.true;
           } else {
-            expect(resultOrPromise[0].error).to.be.undefined;
-            resultOrPromise[0].resolved.should.be.true;
-            resultOrPromise[0].loaded.should.be.true;
+            expect(resultOrPromise[0].loadingResult.error).to.be.undefined;
+            resultOrPromise[0].loadingResult.resolved.should.be.true;
+            resultOrPromise[0].setterResult.resolved.should.be.true;
             (typeof testJsonObj).should.equal('object');
             testJsonObj.name.should.exist;
             testJsonObj.id.should.equal(1);
@@ -117,22 +125,26 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json,
-              loadSchema: {
-                validationSchema: {
-                  name: {type: 'string'},
-                  id: {type: 'number'},
-                  doIt: {type: 'string'}
-                },
-                useNewCheckerFunction: false
-              }
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json,
+                loadSchema: {
+                  validationSchema: {
+                    name: {type: 'string'},
+                    id: {type: 'number'},
+                    doIt: {type: 'string'}
+                  },
+                  useNewCheckerFunction: false
+                }
+              },
             loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -142,9 +154,8 @@ describe('app-utility tests', () => {
           } else {
             resultOrPromise.length.should.equal(1);
             const result = resultOrPromise[0];
-            expect(result.error).to.exist;
-            result.resolved.should.be.false;
-            result.loaded.should.be.false;
+            expect(result.loadingResult.error).to.exist;
+            result.loadingResult.resolved.should.be.false;
           }
         });
         it('should load json with async schema check', () => {
@@ -159,31 +170,35 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json,
-              loadSchema: {
-                validationSchema: {
-                  $$async: true,
-                  name: {type: 'string'},
-                  id: {type: 'number'},
-                  label: {
-                    type: 'string',
-                    custom: async (v, errors: ValidationError[]) => {
-                      if (v !== 'A') {
-                        errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
-                      }
-                      return v;
-                    }
-                  }
-                },
-                useNewCheckerFunction: true
-              }
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json,
+                loadSchema: {
+                  validationSchema: {
+                    $$async: true,
+                    name: {type: 'string'},
+                    id: {type: 'number'},
+                    label: {
+                      type: 'string',
+                      custom: async (v, errors: ValidationError[]) => {
+                        if (v !== 'A') {
+                          errors.push({type: 'unique', actual: v, field: 'label', expected: 'A'});
+                        }
+                        return v;
+                      }
+                    }
+                  },
+                  useNewCheckerFunction: true
+                }
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -191,9 +206,9 @@ describe('app-utility tests', () => {
           if (isPromise(resultOrPromise)) {
             return resultOrPromise
               .then(values => {
-                expect(values[0].error).to.be.undefined;
-                values[0].resolved.should.be.true;
-                values[0].loaded.should.be.true;
+                expect(values[0].loadingResult.error).to.be.undefined;
+                values[0].setterResult.resolved.should.be.true;
+                values[0].loadingResult.resolved.should.be.true;
                 (typeof testJsonObj).should.equal('object');
                 testJsonObj.name.should.exist;
                 testJsonObj.id.should.equal(1);
@@ -216,37 +231,41 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json,
-              loadSchema: {
-                validationSchema: {
-                  $$async: true,
-                  name: {type: 'string'},
-                  id: {type: 'number'},
-                  label: {
-                    type: 'string',
-                    custom: async (v, errors: ValidationError[]) => {
-                      if (v !== 'B') {
-                        errors.push({
-                          type: 'unique',
-                          actual: v,
-                          field: 'label',
-                          expected: 'B',
-                          message: 'Wrong value for label'
-                        });
-                      }
-                      return v;
-                    }
-                  }
-                },
-                useNewCheckerFunction: true
-              }
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json,
+                loadSchema: {
+                  validationSchema: {
+                    $$async: true,
+                    name: {type: 'string'},
+                    id: {type: 'number'},
+                    label: {
+                      type: 'string',
+                      custom: async (v, errors: ValidationError[]) => {
+                        if (v !== 'B') {
+                          errors.push({
+                            type: 'unique',
+                            actual: v,
+                            field: 'label',
+                            expected: 'B',
+                            message: 'Wrong value for label'
+                          });
+                        }
+                        return v;
+                      }
+                    }
+                  },
+                  useNewCheckerFunction: true
+                }
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -256,9 +275,8 @@ describe('app-utility tests', () => {
               .then(values => {
                 values.length.should.equal(1);
                 const result = values[0];
-                expect(result.error).to.exist;
-                result.resolved.should.be.false;
-                result.loaded.should.be.false;
+                expect(result.loadingResult.error).to.exist;
+                result.loadingResult.resolved.should.be.false;
               });
           } else {
             unreachableCode.should.be.true;
@@ -295,24 +313,28 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '../testing/test-json.json',
-              moduleResolution: ModuleResolution.json,
-              loadSchema
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON,
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '../testing/test-json.json',
+                moduleResolution: ModuleResolution.json,
+                loadSchema
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
           const resultOrPromise = resolver.resolve();
           if (isPromise(resultOrPromise)) {
             resultOrPromise.then(values => {
-              expect(values[0].error).to.be.undefined;
-              values[0].resolved.should.be.true;
-              values[0].loaded.should.be.true;
+              expect(values[0].loadingResult.error).to.be.undefined;
+              values[0].setterResult.resolved.should.be.true;
+              values[0].loadingResult.resolved.should.be.true;
               (typeof testJsonObj).should.equal('object');
               testJsonObj.name.should.exist;
               testJsonObj.id.should.equal(1);
@@ -339,15 +361,19 @@ describe('app-utility tests', () => {
           const a = new A();
           const pendingResolution: PendingModuleResolution = {
             refName: 'myA',
-            ownerIsObject: true,
-            ownerThis: a,
-            ownerSetter: 'setJSON',
-            module: {
-              moduleName: '@franzzemen/test',
-              propertyName: 'nestedJsonStr.jsonStr',
-              moduleResolution: ModuleResolution.es
+            setter: {
+              ownerIsObject: true,
+              objectRef: a,
+              setterFunction: 'setJSON',
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '@franzzemen/test',
+                propertyName: 'nestedJsonStr.jsonStr',
+                moduleResolution: ModuleResolution.es
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -357,7 +383,7 @@ describe('app-utility tests', () => {
               .then(values => {
                 values.length.should.equal(1);
                 a.refName.should.equal('myA');
-                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                values[0].loadingResult.resolvedObject['prop'].should.equal('jsonStr');
                 ('prop' in a.jsonObj).should.be.true;
                 a.jsonObj.prop.should.equal('jsonStr');
               }, err => {
@@ -384,16 +410,20 @@ describe('app-utility tests', () => {
           const a = new A();
           const pendingResolution: PendingModuleResolution = {
             refName: 'myA',
-            ownerIsObject: true,
-            ownerThis: a,
-            ownerSetter: 'setJSON',
-            module: {
-              moduleName: '@franzzemen/test',
-              propertyName: 'nestedJsonStr.jsonStr',
-              moduleResolution: ModuleResolution.es
+            setter: {
+              ownerIsObject: true,
+              objectRef: a,
+              setterFunction: 'setJSON',
+              paramsArray: [5, 'abc']
             },
-            loadPackageType: LoadPackageType.json,
-            paramsArray: [5, 'abc']
+            loader: {
+              module: {
+                moduleName: '@franzzemen/test',
+                propertyName: 'nestedJsonStr.jsonStr',
+                moduleResolution: ModuleResolution.es
+              },
+              loadPackageType: LoadPackageType.json
+            },
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -402,7 +432,7 @@ describe('app-utility tests', () => {
             return resultOrPromise
               .then(values => {
                 values.length.should.equal(1);
-                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                values[0].loadingResult.resolvedObject['prop'].should.equal('jsonStr');
                 ('prop' in a.jsonObj).should.be.true;
                 a.jsonObj.prop.should.equal('jsonStr');
                 a.num.should.equal(5);
@@ -425,15 +455,19 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myA',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '@franzzemen/test',
-              propertyName: 'nestedJsonStr.jsonStr',
-              moduleResolution: ModuleResolution.es
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON
             },
-            loadPackageType: LoadPackageType.json
+            loader: {
+              module: {
+                moduleName: '@franzzemen/test',
+                propertyName: 'nestedJsonStr.jsonStr',
+                moduleResolution: ModuleResolution.es
+              },
+              loadPackageType: LoadPackageType.json
+            }
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -442,7 +476,7 @@ describe('app-utility tests', () => {
             return resultOrPromise
               .then(values => {
                 values.length.should.equal(1);
-                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                values[0].loadingResult.resolvedObject['prop'].should.equal('jsonStr');
                 jsonObj.prop.should.equal('jsonStr');
               }, err => {
                 console.log(err);
@@ -467,16 +501,20 @@ describe('app-utility tests', () => {
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'myA',
-            ownerIsObject: false,
-            ownerThis: undefined,
-            ownerSetter: setJSON,
-            module: {
-              moduleName: '@franzzemen/test',
-              propertyName: 'nestedJsonStr.jsonStr',
-              moduleResolution: ModuleResolution.es
+            setter: {
+              ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setJSON,
+              paramsArray: [5, 'abc']
             },
-            loadPackageType: LoadPackageType.json,
-            paramsArray: [5, 'abc']
+            loader: {
+              module: {
+                moduleName: '@franzzemen/test',
+                propertyName: 'nestedJsonStr.jsonStr',
+                moduleResolution: ModuleResolution.es
+              },
+              loadPackageType: LoadPackageType.json
+            },
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
@@ -485,7 +523,7 @@ describe('app-utility tests', () => {
             return resultOrPromise
               .then(values => {
                 values.length.should.equal(1);
-                values[0].resolvedObject['prop'].should.equal('jsonStr');
+                values[0].loadingResult.resolvedObject['prop'].should.equal('jsonStr');
                 jsonObj.prop.should.equal('jsonStr');
                 num.should.equal(5);
                 str.should.equal('abc');
@@ -511,21 +549,25 @@ describe('app-utility tests', () => {
 
             const pendingResolution: PendingModuleResolution = {
               refName: 'myA',
-              ownerIsObject: false,
-              ownerThis: undefined,
-              ownerSetter: setObj,
-              module: {
-                moduleName: '../testing/extended.js',
-                functionName: 'create2',
-                moduleResolution: ModuleResolution.es,
-                loadSchema: {
-                  validationSchema: {
-                    name: {type: 'string'}
-                  },
-                  useNewCheckerFunction: true
-                }
-              },
-              loadPackageType: LoadPackageType.package
+              setter: {
+                ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setObj}
+              ,
+              loader: {
+                module: {
+                  moduleName: '../testing/extended.js',
+                  functionName: 'create2',
+                  moduleResolution: ModuleResolution.es,
+                  loadSchema: {
+                    validationSchema: {
+                      name: {type: 'string'}
+                    },
+                    useNewCheckerFunction: true
+                  }
+                },
+                loadPackageType: LoadPackageType.package
+              }
             };
             const resolver = new ModuleResolver();
             resolver.add(pendingResolution);
@@ -535,7 +577,7 @@ describe('app-utility tests', () => {
                 .then(values => {
                   values.length.should.equal(1);
                   const result = values[0];
-                  expect(result.resolvedObject['name']).to.equal('Test');
+                  expect(result.loadingResult.resolvedObject['name']).to.equal('Test');
                 }, err => {
                   console.log(err);
                   unreachableCode.should.be.true;
@@ -554,15 +596,19 @@ describe('app-utility tests', () => {
 
             const pendingResolution: PendingModuleResolution = {
               refName: 'myA',
-              ownerIsObject: false,
-              ownerThis: undefined,
-              ownerSetter: setObj,
-              module: {
-                moduleName: '../testing/bad-extended.cjs',
-                moduleResolution: ModuleResolution.commonjs,
-                functionName: 'createAsyncFunc'
+              setter: {
+                ownerIsObject: false,
+              objectRef: undefined,
+              setterFunction: setObj
               },
-              loadPackageType: LoadPackageType.package
+              loader: {
+                module: {
+                  moduleName: '../testing/bad-extended.cjs',
+                  moduleResolution: ModuleResolution.commonjs,
+                  functionName: 'createAsyncFunc'
+                },
+                loadPackageType: LoadPackageType.package
+              }
             };
             const resolver = new ModuleResolver();
             resolver.add(pendingResolution);
@@ -571,7 +617,7 @@ describe('app-utility tests', () => {
               resultOrPromise.then(values => {
                 values.length.should.equal(1);
                 const result = values[0];
-                expect(result.resolvedObject).to.equal(50);
+                expect(result.loadingResult.resolvedObject).to.equal(50);
               })
             } else {
               unreachableCode.should.be.true;
