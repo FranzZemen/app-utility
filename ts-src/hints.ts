@@ -257,9 +257,10 @@ export class Hints extends Map<string, string | Object> {
       remaining = result2[1].trim();
       return remaining;
     } else {
-      const err = new Error('Should never get here [no remaining]');
-      const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'consumeHints');
-      logErrorAndThrow(err, log, ec);
+      // const err = new Error('Should never get here [no remaining]');
+      // const log = new LoggerAdapter(ec, 'app-utility', 'hints', 'consumeHints');
+      //logErrorAndThrow(err, log, ec);
+      return remaining;
     }
   }
 
