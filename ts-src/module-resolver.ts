@@ -15,7 +15,7 @@ export enum LoadPackageType {
 }
 
 // If error an Error is expected to be throw or a Promise that resolves to one
-export type ModuleResolutionSetterInvocation = ((refName: any, result: any, def?: ModuleResolutionResult, ...params) => true | Promise<true>);
+export type ModuleResolutionSetterInvocation = ((refName: string, result: any, def?: ModuleResolutionResult, ...params) => true | Promise<true>);
 /**
  * Invoked once the resolver has resolved ALL module loads and setters
  * Only called if the any associated module load and any setter was successful for all identical dedup ids.
