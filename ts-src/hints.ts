@@ -11,7 +11,6 @@ import {
   ModuleResolver
 } from './module-resolver.js';
 
-export type Fragment = { frag: string, start: number, end?: number }
 
 export class Hints extends Map<string, string | Object> {
   hintBody: string;
@@ -103,7 +102,6 @@ export class Hints extends Map<string, string | Object> {
 
     // Locate name, value pairs with quotes
     nvRegex = /([a-z0-9]+[-a-z0-9]*[a-z0-9]+)[\s\t\r\n\v\f\u2028\u2029]*=[\s\t\r\n\v\f\u2028\u2029]*"([.\/\-_a-zA-Z0-9\s\t\r\n\v\f\u2028\u2029]+)"/g;
-    const fragments: Fragment[] = [];
     match = undefined;
     matchBoundaries = [];
     while ((match = nvRegex.exec(hintsCopy)) !== null) {
