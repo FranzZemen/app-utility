@@ -224,7 +224,7 @@ export class ModuleResolver {
     }
     // The resolver may be resolving incrementally.  Only work on pending resolutions that haven't yet been resolved.
     let pendingResolutions: PendingModuleResolution[];
-    let moduleResolutionPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[] = [];
+    let moduleResolutionResultPromises: (ModuleResolutionResult | Promise<ModuleResolutionResult>)[] = [];
     let incremental = false;
     if (this.moduleResolutionResults.length > 0 && this.pendingResolutions.length > this.moduleResolutionResults.length) {
       pendingResolutions = this.pendingResolutions.slice(this.moduleResolutionResults.length - 1);
@@ -276,7 +276,7 @@ export class ModuleResolver {
                   }
                 } as ModuleResolutionResult);
               });
-            moduleResolutionPromises.push(moduleResolutionPromise);
+            moduleResolutionResultPromises.push(moduleResolutionPromise);
           } else {
             const result: ModuleResolutionResult | Promise<ModuleResolutionResult> = {
               resolution: pendingResolution,
@@ -296,18 +296,18 @@ export class ModuleResolver {
                   };
                   return result;
                 });
-              moduleResolutionPromises.push(resultOrPromise);
+              moduleResolutionResultPromises.push(resultOrPromise);
             } else {
               result.setterResult = {
                 resolved: true
               };
-              moduleResolutionPromises.push(result);
+              moduleResolutionResultPromises.push(result);
             }
           }
         } catch (err) {
           log.warn(pendingResolution, `Pending resolution could not be successfully resolved`);
           logErrorAndReturn(err, log, ec);
-          moduleResolutionPromises.push({
+          moduleResolutionResultPromises.push({
             resolution: pendingResolution,
             loadingResult: {
               resolved: false,
@@ -317,35 +317,35 @@ export class ModuleResolver {
         }
       } else if(pendingResolution.action !== undefined) {
         // If there was no loader, no result has been created yet.  Therefore we need to create a result to house the actions
-        moduleResolutionPromises.push({
+        moduleResolutionResultPromises.push({
           resolution: pendingResolution
         })
       }
     });
     if (async) {
-      if (moduleResolutionPromises.length > 0) {
-        return Promise.all(moduleResolutionPromises)
-          .then(values => {
-            const actionResultOrPromise = this.invokeActions(moduleResolutionPromises as ModuleResolutionResult[], ec);
+      if (moduleResolutionResultPromises.length > 0) {
+        return Promise.all(moduleResolutionResultPromises)
+          .then(moduleResolutionResults => {
+            const actionResultOrPromise = this.invokeActions(moduleResolutionResults, ec);
             if (isPromise(actionResultOrPromise)) {
               return actionResultOrPromise
                 .then((trueVal: true) => {
                   if (incremental) {
-                    this.moduleResolutionResults = this.moduleResolutionResults.concat(values);
+                    this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionResults);
                   } else {
-                    this.moduleResolutionResults = values;
+                    this.moduleResolutionResults = moduleResolutionResults;
                   }
                   this.isResolving = false;
-                  return values;
+                  return moduleResolutionResults;
                 });
             } else {
               if (incremental) {
-                this.moduleResolutionResults = this.moduleResolutionResults.concat(values);
+                this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionResults);
               } else {
-                this.moduleResolutionResults = values;
+                this.moduleResolutionResults = moduleResolutionResults;
               }
               this.isResolving = false;
-              return values;
+              return moduleResolutionResults;
             }
           }, err => {
             this.isResolving = false;
@@ -356,26 +356,26 @@ export class ModuleResolver {
         return Promise.resolve([]);
       }
     } else {
-      const actionResultOrPromise = this.invokeActions(moduleResolutionPromises as ModuleResolutionResult[], ec);
+      const actionResultOrPromise = this.invokeActions(moduleResolutionResultPromises as ModuleResolutionResult[], ec);
       if (isPromise(actionResultOrPromise)) {
         return actionResultOrPromise
           .then((trueVal: true) => {
             if (incremental) {
-              this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionPromises as ModuleResolutionResult[]);
+              this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionResultPromises as ModuleResolutionResult[]);
             } else {
-              this.moduleResolutionResults = moduleResolutionPromises as ModuleResolutionResult[];
+              this.moduleResolutionResults = moduleResolutionResultPromises as ModuleResolutionResult[];
             }
             this.isResolving = false;
-            return Promise.all(moduleResolutionPromises);
+            return Promise.all(moduleResolutionResultPromises);
           });
       } else {
         if (incremental) {
-          this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionPromises as ModuleResolutionResult[]);
+          this.moduleResolutionResults = this.moduleResolutionResults.concat(moduleResolutionResultPromises as ModuleResolutionResult[]);
         } else {
-          this.moduleResolutionResults = moduleResolutionPromises as ModuleResolutionResult[];
+          this.moduleResolutionResults = moduleResolutionResultPromises as ModuleResolutionResult[];
         }
         this.isResolving = false;
-        return moduleResolutionPromises as ModuleResolutionResult[];
+        return moduleResolutionResultPromises as ModuleResolutionResult[];
       }
     }
   }

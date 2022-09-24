@@ -1,15 +1,15 @@
 import chai from 'chai';
-import 'mocha';
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
+import 'mocha';
 import {isPromise} from 'util/types';
 import {
-  CheckFunction, ExecutionContextI, loadFromModule, loadJSONFromPackage,
-  loadJSONResource,
-  LoadPackageType, LoadSchema, ModuleDefinition,
-  ModuleResolution,
+  CheckFunction, ExecutionContextI, loadFromModule,
+  LoadPackageType,
+  ModuleResolution, ModuleResolutionActionInvocation, ModuleResolutionResult, ModuleResolutionSetterInvocation,
   ModuleResolver,
-  PendingModuleResolution, TypeOf
+  PendingModuleResolution
 } from '../publish/index.js';
+import {MyObject, myObjectFactory} from './my-object.js';
 
 
 const should = chai.should();
@@ -110,7 +110,7 @@ describe('app-utility tests', () => {
             testJsonObj.name.should.equal('Franz');
             testJsonObj.id.should.exist;
           }
-          ;
+
         });
 
         it('should load json with failing schema check', () => {
@@ -756,6 +756,7 @@ describe('app-utility tests', () => {
             return true;
           }
 
+
           const pendingResolution: PendingModuleResolution = {
             refName: 'myJSONObj',
             setter: {
@@ -804,6 +805,69 @@ describe('app-utility tests', () => {
             testJsonObj.name.should.equal('Franz');
             testJsonObj.id.should.exist;
             actionCount.should.equal(1);
+          }
+        });
+        it('should invoke action only once with independent action and async', () => {
+
+          class SomeObject {
+            myObject?: MyObject
+            count?: number
+          }
+
+          const someObject = new SomeObject();
+
+          const action: ModuleResolutionActionInvocation = (successfulResolution, obj: SomeObject, count: number) => {
+            if(successfulResolution) {
+              someObject.myObject = container.myObject;
+              someObject.count = count;
+            }
+            return Promise.reject(true);
+          }
+
+          const container: {myObject: MyObject} = {
+            myObject: MyObject
+          };
+
+          const setter: ModuleResolutionSetterInvocation = (refName:string, result:MyObject, def: ModuleResolutionResult, name: string) => {
+            container.myObject = result;
+            container.myObject.name = name;
+            return Promise.resolve(true);
+          }
+
+          const pendingResolution: PendingModuleResolution = {
+            refName: 'FunObject',
+            loader: {
+              module: {
+                moduleName: '../testing/my-object.js',
+                functionName: 'myObjectFactory',
+                moduleResolution: ModuleResolution.es
+              },
+              loadPackageType: LoadPackageType.package
+            },
+            setter: {
+              ownerIsObject: false,
+              setterFunction: setter,
+              paramsArray: ['FunObject']
+            },
+            action: {
+              actionFunction: action,
+              objectRef: undefined,
+              ownerIsObject: false,
+              paramsArray: [someObject, 5]
+            }
+          };
+
+          const resolver = new ModuleResolver();
+          resolver.add(pendingResolution);
+          const resultOrPromise = resolver.resolve();
+          if (isPromise(resultOrPromise)) {
+            return resultOrPromise
+              .then(result => {
+                someObject.myObject.name.should.equal('FunObject');
+                someObject.count.should.equal(5);
+              });
+          } else {
+            unreachableCode.should.be.true;
           }
         });
       });
