@@ -196,6 +196,16 @@ export function loadJSONResource(moduleDef: ModuleDefinition, ec?: ExecutionCont
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
   // JSON can always be loaded dynamically with require in both commonjs and es
   if(moduleDef.moduleResolution === ModuleResolution.json) {
+    // TODO: Should we switch to dynamic import in es 6 with the assertion?  Noting that it would force a Promise all the time
+    /*
+    const { default: info } = await import("./package.json", {
+      assert: {
+        type: "json",
+      },
+    });
+
+     */
+
     const maybeJSON = requireModule(moduleDef.moduleName);
     if (maybeJSON) {
       // Protect from abuse

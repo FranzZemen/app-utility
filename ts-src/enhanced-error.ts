@@ -1,30 +1,43 @@
 import {ExecutionContextI} from './execution-context.js';
 import {LoggerAdapter} from './log/index.js';
 
-export function logErrorAndThrow(err: Error, log?: LoggerAdapter, ec?: ExecutionContextI) {
-  if(err instanceof EnhancedError) {
-    if(err.isLogged) {
-      throw err;
+export function logErrorAndThrow(err: Error | string, log?: LoggerAdapter, ec?: ExecutionContextI) {
+  if(typeof err === 'string') {
+    const error = new EnhancedError(err);
+    error.isLogged = true;
+    if(log) {
+      log.error(error);
     } else {
-      err.isLogged = true;
-      if(log) {
+      const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
+      log.warn('No logger provided, using default');
+      log.error(error);
+    }
+    throw error;
+  } else {
+    if (err instanceof EnhancedError) {
+      if (err.isLogged) {
+        throw err;
+      } else {
+        err.isLogged = true;
+        if (log) {
+          log.error(err);
+        } else {
+          const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
+          log.warn('No logger provided, using default');
+          log.error(err);
+        }
+        throw err;
+      }
+    } else {
+      if (log) {
         log.error(err);
       } else {
         const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
         log.warn('No logger provided, using default');
         log.error(err);
       }
-      throw err;
+      throw new EnhancedError('Wrapped', err, true);
     }
-  } else {
-    if(log) {
-      log.error(err);
-    } else {
-      const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
-      log.warn('No logger provided, using default');
-      log.error(err);
-    }
-    throw new EnhancedError('Wrapped', err, true);
   }
 }
 
@@ -34,7 +47,19 @@ export function logErrorAndThrow(err: Error, log?: LoggerAdapter, ec?: Execution
  * @param log
  * @param ec
  */
-export function logErrorAndReturn(err: Error, log?: LoggerAdapter, ec?: ExecutionContextI) {
+export function logErrorAndReturn(err: Error | string, log?: LoggerAdapter, ec?: ExecutionContextI) {
+  if(typeof err === 'string') {
+    const error = new EnhancedError(err);
+    error.isLogged = true;
+    if(log) {
+      log.error(error);
+    } else {
+      const log = new LoggerAdapter(ec, 're-common', 'enhanced-error', 'logErrorAndThrow');
+      log.warn('No logger provided, using default');
+      log.error(error);
+    }
+    return error;
+  }
   if(err instanceof EnhancedError) {
     if(err.isLogged) {
       return err;

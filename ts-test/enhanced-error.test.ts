@@ -1,6 +1,6 @@
 import 'mocha';
 import chai from 'chai';
-import {EnhancedError, logErrorAndThrow} from '../publish/enhanced-error.js'
+import {EnhancedError, logErrorAndReturn, logErrorAndThrow} from '../publish/enhanced-error.js';
 
 const expect = chai.expect;
 const should = chai.should();
@@ -44,6 +44,10 @@ describe('app-utility tests', () => {
       it('Should get contained error message', () => {
         const err = new EnhancedError('Hello World', new Error('Goodbye'));
         err.message.should.equal('Goodbye');
+      })
+      it('Should return an error with string initialzation', () => {
+        const err = logErrorAndReturn('Hello World');
+        err.message.should.equal('Hello World');
       })
     })
   })
