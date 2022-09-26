@@ -7,3 +7,4 @@ export * from './hints.js';
 export * from './await-evaluation.js';
 export * from './fastest-validator-util.js';
 export * from './module-resolver.js';
+export * from './escape-regex.js';
