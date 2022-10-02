@@ -1,6 +1,6 @@
 {
   "name": "@franzzemen/app-utility",
-  "version": "5.0.13",
+  "version": "5.0.14",
   "description": "Basic application utilities",
   "main": "index.js",
   "type": "module",

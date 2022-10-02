@@ -235,7 +235,15 @@ export class Hints extends Map<string, string | Object> {
     }
   }
 
-  static peekHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+  static peekHints(resolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: {start: string, end: string} = {
+    start: '<<',
+    end: '>>'
+  }): Hints {
+    Hints.validatePrefix(near, prefix, ec);
+    return Hints.captureHints(resolver, near, prefix, ec, enclosure);
+  }
+
+  static peekAndResolveHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
   }): Hints | Promise<Hints> {

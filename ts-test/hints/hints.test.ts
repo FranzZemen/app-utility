@@ -328,7 +328,7 @@ describe('Hint Tests', () => {
     }
   });
   it('should peek hints', () => {
-    const hintsOrPromise = Hints.peekHints('<<re name=Hello>>', 're');
+    const hintsOrPromise = Hints.peekAndResolveHints('<<re name=Hello>>', 're');
     if(isPromise(hintsOrPromise)) {
       unreachableCode.should.be.true;
     } else {
