@@ -34,12 +34,25 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  static peekHints(resolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+  /**
+   * Peeks at the next hint.  Module resolution is not guaranteed on return, as it is done locally.  Peek hints
+   * is not intended for module load related results.  Note that loading commonjs, and from JSON files would be resolved.
+   * For hints asynchronous resolution is limited JSON properties loaded from es modules.
+   * @param near
+   * @param prefix
+   * @param ec
+   * @param enclosure
+   */
+  static peekHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
   }): Hints {
+    const localResolver = new ModuleResolver();
     Hints.validatePrefix(near, prefix, ec);
-    return Hints.captureHints(resolver, near, prefix, ec, enclosure);
+    const hints = Hints.captureHints(localResolver, near, prefix, ec, enclosure);
+    // Ignore return
+    localResolver.resolve(ec);
+    return hints;
   }
 
   static peekAndResolveHints(near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
