@@ -34,7 +34,7 @@ export class Hints extends Map<string, string | Object> {
     this.hintBody = hintBody.trim();
   }
 
-  static peekHints(resolver: ModuleResolver, near: string, prefix: string, resolve: boolean = true, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
+  static peekHints(resolver: ModuleResolver, near: string, prefix: string, ec?: ExecutionContextI, enclosure: { start: string, end: string } = {
     start: '<<',
     end: '>>'
   }): Hints {
