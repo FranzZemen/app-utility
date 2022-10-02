@@ -2,7 +2,7 @@ import {AsyncCheckFunction, SyncCheckFunction} from 'fastest-validator';
 import {LoadSchema} from './load-from-module.js';
 
 export function isLoadSchema(schema: any | LoadSchema): schema is LoadSchema {
-  return typeof schema === 'object' && schema !== undefined && 'useNewCheckerFunction' in schema && 'validationSchema' in schema;
+  return schema !== undefined && typeof schema === 'object' && 'useNewCheckerFunction' in schema && 'validationSchema' in schema;
 }
 
 export type CheckFunction = AsyncCheckFunction | SyncCheckFunction;
@@ -12,11 +12,11 @@ export function isCheckFunction(check: any | CheckFunction): check is CheckFunct
 }
 
 export function isAsyncCheckFunction(check: any | CheckFunction): check is AsyncCheckFunction {
-  return check.async === true;
+  return check !== undefined && check.async === true;
 }
 
 export function isSyncCheckFunction(check: any | CheckFunction): check is SyncCheckFunction {
-  return check.async === false;
+  return check !== undefined && check.async === false;
 }
 
 

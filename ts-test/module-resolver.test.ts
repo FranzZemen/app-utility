@@ -36,7 +36,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -48,6 +49,7 @@ describe('app-utility tests', () => {
           };
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
+          resolver.pendingAsync.should.be.false;
           const resultOrPromise = resolver.resolve();
           if (isPromise(resultOrPromise)) {
             return resultOrPromise
@@ -78,7 +80,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON, 
+              isAsync: false
             },
             loader: {
               module: {
@@ -128,7 +131,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -173,7 +177,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -234,7 +239,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -316,7 +322,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -364,7 +371,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: true,
               objectRef: a,
-              setterFunction: 'setJSON'
+              _function: 'setJSON',
+              isAsync: false
             },
             loader: {
               module: {
@@ -413,8 +421,9 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: true,
               objectRef: a,
-              setterFunction: 'setJSON',
-              paramsArray: [5, 'abc']
+              _function: 'setJSON',
+              paramsArray: [5, 'abc'],
+              isAsync: false
             },
             loader: {
               module: {
@@ -458,7 +467,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -504,8 +514,9 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON,
-              paramsArray: [5, 'abc']
+              _function: setJSON,
+              paramsArray: [5, 'abc'],
+              isAsync: false
             },
             loader: {
               module: {
@@ -552,7 +563,8 @@ describe('app-utility tests', () => {
               setter: {
                 ownerIsObject: false,
                 objectRef: undefined,
-                setterFunction: setObj
+                _function: setObj,
+                isAsync: false
               }
               ,
               loader: {
@@ -600,19 +612,22 @@ describe('app-utility tests', () => {
               setter: {
                 ownerIsObject: false,
                 objectRef: undefined,
-                setterFunction: setObj
+                _function: setObj,
+                isAsync: false
               },
               loader: {
                 module: {
                   moduleName: '../testing/bad-extended.cjs',
                   moduleResolution: ModuleResolution.commonjs,
-                  functionName: 'createAsyncFunc'
+                  functionName: 'createAsyncFunc',
+                  asyncFactory: true
                 },
                 loadPackageType: LoadPackageType.package
               }
             };
             const resolver = new ModuleResolver();
             resolver.add(pendingResolution);
+            resolver.pendingAsync.should.be.true;
             const resultOrPromise = resolver.resolve();
             if (isPromise(resultOrPromise)) {
               resultOrPromise.then(values => {
@@ -648,7 +663,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -659,9 +675,10 @@ describe('app-utility tests', () => {
             },
             action: {
               dedupId: 'actionTest',
-              actionFunction: action,
+              _function: action,
               objectRef: undefined,
-              ownerIsObject: false
+              ownerIsObject: false,
+              isAsync: false
             }
           };
           const resolver = new ModuleResolver();
@@ -704,7 +721,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -715,9 +733,10 @@ describe('app-utility tests', () => {
             },
             action: {
               dedupId: 'actionTest',
-              actionFunction: action,
+              _function: action,
               objectRef: undefined,
-              ownerIsObject: false
+              ownerIsObject: false,
+              isAsync: false
             }
           };
           const resolver = new ModuleResolver();
@@ -762,7 +781,8 @@ describe('app-utility tests', () => {
             setter: {
               ownerIsObject: false,
               objectRef: undefined,
-              setterFunction: setJSON
+              _function: setJSON,
+              isAsync: false
             },
             loader: {
               module: {
@@ -773,18 +793,20 @@ describe('app-utility tests', () => {
             },
             action: {
               dedupId: 'actionTest',
-              actionFunction: action,
+              _function: action,
               objectRef: undefined,
-              ownerIsObject: false
+              ownerIsObject: false,
+              isAsync: false
             }
           };
           const pendingResolution2: PendingModuleResolution = {
             refName: 'actionTest1',
             action: {
               dedupId: 'actionTest',
-              actionFunction: action,
+              _function: action,
               objectRef: undefined,
-              ownerIsObject: false
+              ownerIsObject: false,
+              isAsync: false
             }
           };
           const resolver = new ModuleResolver();
@@ -810,29 +832,29 @@ describe('app-utility tests', () => {
         it('should invoke action only once with independent action and async', () => {
 
           class SomeObject {
-            myObject?: MyObject
-            count?: number
+            myObject?: MyObject;
+            count?: number;
           }
 
           const someObject = new SomeObject();
 
           const action: ModuleResolutionActionInvocation = (successfulResolution, obj: SomeObject, count: number) => {
-            if(successfulResolution) {
+            if (successfulResolution) {
               someObject.myObject = container.myObject;
               someObject.count = count;
             }
             return Promise.reject(true);
-          }
+          };
 
-          const container: {myObject: MyObject} = {
+          const container: { myObject: MyObject } = {
             myObject: MyObject
           };
 
-          const setter: ModuleResolutionSetterInvocation = (refName:string, result:MyObject, def: ModuleResolutionResult, name: string) => {
+          const setter: ModuleResolutionSetterInvocation = (refName: string, result: MyObject, def: ModuleResolutionResult, name: string) => {
             container.myObject = result;
             container.myObject.name = name;
             return Promise.resolve(true);
-          }
+          };
 
           const pendingResolution: PendingModuleResolution = {
             refName: 'FunObject',
@@ -846,19 +868,22 @@ describe('app-utility tests', () => {
             },
             setter: {
               ownerIsObject: false,
-              setterFunction: setter,
-              paramsArray: ['FunObject']
+              _function: setter,
+              paramsArray: ['FunObject'],
+              isAsync: true
             },
             action: {
-              actionFunction: action,
+              _function: action,
               objectRef: undefined,
               ownerIsObject: false,
-              paramsArray: [someObject, 5]
+              paramsArray: [someObject, 5],
+              isAsync: true
             }
           };
 
           const resolver = new ModuleResolver();
           resolver.add(pendingResolution);
+          resolver.pendingAsync.should.be.true;
           const resultOrPromise = resolver.resolve();
           if (isPromise(resultOrPromise)) {
             return resultOrPromise

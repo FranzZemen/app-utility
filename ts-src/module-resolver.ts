@@ -1,11 +1,13 @@
 import {isPromise} from 'util/types';
 import {EnhancedError, logErrorAndReturn, logErrorAndThrow} from './enhanced-error.js';
 import {ExecutionContextI} from './execution-context.js';
+import {isAsyncCheckFunction, isLoadSchema} from './fastest-validator-util.js';
 import {
   loadFromModule,
   loadJSONFromPackage,
   loadJSONResource,
-  ModuleDefinition, ModuleResolution
+  ModuleDefinition,
+  ModuleResolution
 } from './load-from-module.js';
 import {LoggerAdapter} from './log/index.js';
 
@@ -27,7 +29,24 @@ export type ModuleResolutionSetterInvocation = ((refName: string, result: any, d
 export type ModuleResolutionActionInvocation = (successfulResolution: boolean, ...params) => true | Promise<true>;
 
 
-export interface ModuleResolutionAction {
+export interface ModuleResolutionInvocationSpecification<I> {
+  // Whether this invocation is on an object or not
+  ownerIsObject: boolean,
+  // If an object, its reference
+  objectRef?: any,
+  // The invocation to call.  If the owner is an object, this will be the name of the matching method.  If it is not an
+  // object, this will be the function itself (be careful when defining inline that your closures are what you want).
+  _function: string | I,
+  // Any parameters the function requires
+  paramsArray?: any[],
+  // Until this package has actually invoked the function, setting this is only a suggestion for the external user
+  // Note that it actually doesn't influence processing, it just informs the setter function (as a suggestion prior and
+  // as fact just after) is async.  Only applies when ownerIsObject is false.  The factual setting of this is done
+  // internally automatically.
+  isAsync?: boolean
+}
+
+export interface ModuleResolutionAction extends ModuleResolutionInvocationSpecification<ModuleResolutionActionInvocation>{
   /**
    * This is an id that if set will ensure all actions with this id execute only once.
    *
@@ -40,17 +59,9 @@ export interface ModuleResolutionAction {
    * will ensure the action is called only once, remembering that the action is called only once.
    */
   dedupId?: string,
-  ownerIsObject: boolean,
-  objectRef?: any,
-  actionFunction: string | ModuleResolutionActionInvocation,
-  paramsArray?: any[],
 }
 
-export interface ModuleResolutionSetter {
-  ownerIsObject: boolean,
-  objectRef?: any,
-  setterFunction: string | ModuleResolutionSetterInvocation;
-  paramsArray?: any[],  // This is for the setter function not the module load
+export interface ModuleResolutionSetter extends ModuleResolutionInvocationSpecification<ModuleResolutionSetterInvocation> {
 }
 
 export interface ModuleResolutionLoader {
@@ -108,9 +119,18 @@ export class ModuleResolver {
   pendingResolutions: PendingModuleResolution[] = [];
   moduleResolutionResults: ModuleResolutionResult[] = [];
   isResolving = false;
+  // Simply a flag that remembers if resolutions contain async behavior.
+  // Processing will not assume it does or doesn't, this is helpful to the outside world
+  protected _pendingAsync = false;
+
+  get pendingAsync(): boolean {
+    return this._pendingAsync;
+  }
 
   constructor() {
   }
+
+
 
   static resolutionsHaveErrors(results: ModuleResolutionResult[]): boolean {
     return results.some(result => result.loadingResult?.error || result.setterResult?.error || result.actionResult?.error);
@@ -127,7 +147,7 @@ export class ModuleResolver {
         } else {
           paramsArray = [result.resolution.refName, result.loadingResult.resolvedObject, result];
         }
-        setterResult = this.invoke<true>(result.resolution.setter.ownerIsObject, result.resolution.setter.setterFunction, result.resolution.setter.objectRef, paramsArray, ec);
+        setterResult = this.invoke<true>(result.resolution.setter, paramsArray, ec);
       } catch (err) {
         log.warn(result, `Setter could not be successfully invoked`);
         logErrorAndReturn(err, log, ec);
@@ -164,22 +184,23 @@ export class ModuleResolver {
     }
   }
 
-  private static invoke<R>(ownerIsObject: boolean, ownerFunction: string | ((...params) => R | Promise<R>), ownerThis?: any, paramsArray?: any[], ec?: ExecutionContextI): R | Promise<R> {
+  private static invoke<R>(spec: ModuleResolutionInvocationSpecification<any>, enhancedParamsArray: any[], ec?: ExecutionContextI): R | Promise<R> {
     const log = new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'invoke');
-    if (ownerIsObject === true && typeof ownerFunction !== 'string') {
-      const err = new EnhancedError(`Invalid owner function ${ownerFunction} for ownerIsObject ${ownerIsObject} - it should be a string (not a function)`);
+    if (spec.ownerIsObject === true && typeof spec._function !== 'string') {
+      const err = new EnhancedError(`Invalid owner function ${spec._function} for ownerIsObject ${spec.ownerIsObject} - it should be a string (not a function)`);
       logErrorAndThrow(err);
-    } else if (ownerIsObject === false && typeof ownerFunction === 'string') {
-      const err = new EnhancedError(`Invalid owner function ${ownerFunction} for ownerIsObject ${ownerIsObject} - it should be a function (not a string)`);
+    } else if (spec.ownerIsObject === false && typeof spec._function === 'string') {
+      const err = new EnhancedError(`Invalid owner function ${spec._function} for ownerIsObject ${spec.ownerIsObject} - it should be a function (not a string)`);
       logErrorAndThrow(err);
     }
     let actionResult: R | Promise<R>;
     try {
-      if (ownerIsObject === true) {
-        actionResult = ownerThis[ownerFunction as string](...paramsArray);
+      if (spec.ownerIsObject === true) {
+        actionResult = spec.objectRef[spec._function as string](...enhancedParamsArray);
       } else {
-        actionResult = (ownerFunction as ((...params) => R | Promise<R>))(...paramsArray);
+        actionResult = (spec._function as ((...params) => R | Promise<R>))(...enhancedParamsArray);
       }
+      spec.isAsync = isPromise(actionResult);
       return actionResult;
     } catch (err) {
       logErrorAndThrow(err, log, ec);
@@ -194,6 +215,14 @@ export class ModuleResolver {
     return (this.pendingResolutions.length != this.moduleResolutionResults.length);
   }
 
+  hasPendingAsyncResolutions(): boolean {
+    if(this.pendingResolutions.length === this.moduleResolutionResults.length) {
+      return false;
+    } else {
+      // Check to see if there are any
+    }
+  }
+
   add(pendingResolution: PendingModuleResolution, ec?: ExecutionContextI) {
     if (this.isResolving) {
       logErrorAndThrow(new EnhancedError(`Cannot add while isResolving is ${this.isResolving}`), new LoggerAdapter(ec, 'app-utility', 'module-resolver', 'add'), ec);
@@ -204,6 +233,21 @@ export class ModuleResolver {
     // At least one of loading or action needs to be defined.
     if (!pendingResolution.loader && !pendingResolution.action) {
       logErrorAndThrow(new EnhancedError(`At least one of either loader or action needs to be defined on PendingModuleResolution`));
+    }
+    // Set _pendingAsync helper
+    // False is managed externally, set to false on creation, at the end of processing and on clear.
+    if(pendingResolution?.loader?.module?.moduleResolution === ModuleResolution.es) {
+      this._pendingAsync = true;
+    } else if (isLoadSchema(pendingResolution?.loader?.module?.loadSchema)) {
+      this._pendingAsync = pendingResolution.loader.module.loadSchema.validationSchema.$$async === true;
+    } else if(isAsyncCheckFunction(pendingResolution?.loader?.module?.loadSchema)) {
+      this._pendingAsync = true;
+    } else if(pendingResolution?.loader?.module?.asyncFactory) {
+      this._pendingAsync = true;
+    } else if(pendingResolution?.setter?.isAsync) {
+      this._pendingAsync = true;
+    } else if(pendingResolution?.action?.isAsync) {
+      this._pendingAsync = true;
     }
     this.pendingResolutions.push(pendingResolution);
   }
@@ -336,6 +380,7 @@ export class ModuleResolver {
                     this.moduleResolutionResults = moduleResolutionResults;
                   }
                   this.isResolving = false;
+                  this._pendingAsync = false;
                   return moduleResolutionResults;
                 });
             } else {
@@ -353,6 +398,7 @@ export class ModuleResolver {
           });
       } else {
         this.isResolving = false;
+        this._pendingAsync = false;
         return Promise.resolve([]);
       }
     } else {
@@ -366,6 +412,7 @@ export class ModuleResolver {
               this.moduleResolutionResults = moduleResolutionResultPromises as ModuleResolutionResult[];
             }
             this.isResolving = false;
+            this._pendingAsync = false;
             return Promise.all(moduleResolutionResultPromises);
           });
       } else {
@@ -375,6 +422,7 @@ export class ModuleResolver {
           this.moduleResolutionResults = moduleResolutionResultPromises as ModuleResolutionResult[];
         }
         this.isResolving = false;
+        this._pendingAsync = false;
         return moduleResolutionResultPromises as ModuleResolutionResult[];
       }
     }
@@ -386,6 +434,7 @@ export class ModuleResolver {
     }
     this.pendingResolutions = [];
     this.moduleResolutionResults = [];
+    this._pendingAsync = false;
   }
 
   hasResolutionErrors(): boolean {
@@ -439,7 +488,7 @@ export class ModuleResolver {
         } else {
           paramsArray = [overallSuccess];
         }
-        actionResult = ModuleResolver.invoke<true>(result.resolution.action.ownerIsObject, result.resolution.action.actionFunction, result.resolution.action.objectRef, paramsArray, ec);
+        actionResult = ModuleResolver.invoke<true>(result.resolution.action, paramsArray, ec);
       } catch (err) {
         log.warn(result, `Action could not be successfully invoked`);
         logErrorAndReturn(err, log, ec);

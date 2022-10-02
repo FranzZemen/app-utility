@@ -266,13 +266,15 @@ describe('app-utility tests', () => {
           },
           useNewCheckerFunction: true
         }
-        const result = loadFromModule<any>({
+        const module: ModuleDefinition = {
           moduleName: '../testing/extended.js',
           functionName: 'create2',
           moduleResolution: ModuleResolution.es,
           loadSchema: schema
-        });
+        }
+        const result = loadFromModule<any>(module);
         expect(result).to.exist;
+        module.asyncFactory.should.be.false;
         isPromise(result).should.be.true;
         return result.then(res => {
           res.name.should.equal('Test');
@@ -395,17 +397,20 @@ describe('app-utility tests', () => {
         }
       })
       it('should load a via module function from es extended with successful TypeOf check', () => {
-        const result = loadFromModule<string>({
+        const module: ModuleDefinition = {
           moduleName: '../testing/extended.js',
           functionName: 'createString',
           moduleResolution: ModuleResolution.es,
-          loadSchema: TypeOf.String
-        });
+          loadSchema: TypeOf.String,
+        };
+        const result = loadFromModule<string>(module);
+        module.asyncFactory.should.be.false;
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
           return result.then(res => {
             expect(res).to.equal('hello world');
+            module.asyncFactory.should.be.false;
             return;
           }, err => {
             console.error(err);
@@ -473,17 +478,20 @@ describe('app-utility tests', () => {
         }
       });
       it('should load a via module function returning a promise from es extended number 49', () => {
-        const result = loadFromModule<string>({
+        const module: ModuleDefinition = {
           moduleName: '../testing/extended.js',
           functionName: 'createNumber',
           moduleResolution: ModuleResolution.es,
           loadSchema: TypeOf.Number
-        });
+        };
+        const result = loadFromModule<string>(module);
+        module.asyncFactory.should.be.false;
         expect(result).to.exist;
         isPromise(result).should.be.true;
         if(isPromise(result)) {
           return result.then(res => {
-            res.should.equal(49)
+            res.should.equal(49);
+            module.asyncFactory.should.be.true;
             return;
           }, err => {
             unreachableCode.should.be.true;
@@ -506,15 +514,18 @@ describe('app-utility tests', () => {
       });
       it('should load promise via module default from commonjs bad-extended, for function name createAsyncFunc', () => {
         try {
-          const result = loadFromModule<any>({
+          const module: ModuleDefinition = {
             moduleName: '../testing/bad-extended.cjs',
             moduleResolution: ModuleResolution.commonjs,
             functionName: 'createAsyncFunc'
-          });
+          };
+          const result = loadFromModule<any>(module);
+          module.asyncFactory.should.be.true;
           if(isPromise(result)) {
             return result
               .then(someResult => {
                 someResult.should.equal(50);
+                module.asyncFactory.should.be.true;
               })
           } else {
             unreachableCode.should.be.true;

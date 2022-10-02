@@ -76,7 +76,12 @@ export type ModuleDefinition = {
   propertyName?: string,
   moduleResolution?: ModuleResolution,
   paramsArray?: any[],
-  loadSchema?: LoadSchema | TypeOf | CheckFunction
+  loadSchema?: LoadSchema | TypeOf | CheckFunction,
+  // Until this package has actually invoked the method, setting this is only a suggestion for the external user
+  // Note that it actually doesn't influence processing, it just informs the factory function method (as a suggestion prior and
+  // as fact just after) is async.  Only applies when functionName is specified.  The factual setting of tihs is done
+  // internally automatically.
+  asyncFactory?: boolean
 };
 
 
@@ -238,6 +243,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
           log.warn(moduleDef, err.message);
           logErrorAndThrow(err, log, ec);
         }
+        moduleDef.asyncFactory = true;
         jsonAsStringOrPromise
           .then(jsonAsString => {
             if (typeof jsonAsString === 'string') {
@@ -253,6 +259,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
             }
           });
       } else {
+        moduleDef.asyncFactory = false;
         if (typeof jsonAsStringOrPromise === 'string') {
           const jsonObj = JSON.parse(jsonAsStringOrPromise);
           if (moduleDef.loadSchema) {
@@ -368,11 +375,13 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?
           log.warn(moduleDef, err);
           logErrorAndThrow(new Error(err), log, ec);
         }
+        moduleDef.asyncFactory = true;
         return t
           .then((tt: T) => {
               return validateSchema<T>(moduleDef.moduleName, moduleDef, tt, ec);
           });
       } else {
+        moduleDef.asyncFactory = false;
         return validateSchema<T>(moduleDef.moduleName, moduleDef, t, ec);
       }
     } else {
@@ -381,6 +390,7 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?
       logErrorAndThrow(err, log, ec);
     }
   } else if (moduleDef.constructorName) {
+    moduleDef.asyncFactory = undefined;
     // Note: Constructor functions cannot be asynchronous
     const constructorFunction = objectPath.get(module, moduleDef.constructorName);
     if (constructorFunction) {
@@ -405,6 +415,8 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?
 export function loadFromModule<T>(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Promise<T> | T {
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadFromModule');
   try {
+    // Set to false, actual loading process will determine
+    moduleDef.asyncFactory = false;
     /*
       It is assumed this module is transpiled with resolution es (ecmascript module) although it should work if it is
       compiled with resolution commonjs; this is because the implementation assumes a dynamic import for anything but
