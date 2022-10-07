@@ -212,15 +212,7 @@ export class ModuleResolver {
   }
 
   hasPendingResolutions(): boolean {
-    return (this.pendingResolutions.length != this.moduleResolutionResults.length);
-  }
-
-  hasPendingAsyncResolutions(): boolean {
-    if(this.pendingResolutions.length === this.moduleResolutionResults.length) {
-      return false;
-    } else {
-      // Check to see if there are any
-    }
+    return (this.isResolving === true || this.pendingResolutions.length != this.moduleResolutionResults.length);
   }
 
   add(pendingResolution: PendingModuleResolution, ec?: ExecutionContextI) {
