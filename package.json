@@ -1,6 +1,6 @@
 {
   "name": "@franzzemen/app-utility",
-  "version": "5.0.20",
+  "version": "5.0.22",
   "description": "Basic application utilities",
   "main": "index.js",
   "type": "module",
@@ -18,8 +18,8 @@
   },
   "homepage": "https://github.com/franzzemen/app-utility#readme",
   "devDependencies": {
-    "@franzzemen/gulp-base": "^11.0.0",
-    "@franzzemen/npmu": "^2.0.6",
+    "@franzzemen/gulp-base": "^11.0.2",
+    "@franzzemen/npmu": "^2.0.9",
     "@franzzemen/test": "1.0.3",
     "@types/chai": "^4.3.3",
     "@types/mocha": "^10.0.0",
