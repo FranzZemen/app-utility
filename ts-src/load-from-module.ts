@@ -84,6 +84,25 @@ export type ModuleDefinition = {
   asyncFactory?: boolean
 };
 
+/**
+ * Note that loadSchema and paramsArray are merged whole, and deep copied or deep merged.
+ * @param target
+ * @param source
+ * @param mergeInto
+ */
+export function _mergeModuleDefinition(target?: ModuleDefinition, source?: ModuleDefinition, mergeInto = false): ModuleDefinition {
+  const _target: Partial<ModuleDefinition> = mergeInto ? target : {};
+  _target.moduleName = source?.moduleName ? source.moduleName : target?.moduleName;
+  _target.functionName = source?.functionName ? source.functionName : target?.functionName;
+  _target.constructorName = source?.constructorName ? source.constructorName : target?.constructorName;
+  _target.propertyName = source?.propertyName ? source.propertyName : target?.propertyName;
+  _target.moduleResolution = source?.moduleResolution ? source.moduleResolution : target?.moduleResolution;
+  _target.paramsArray = source?.paramsArray ? source.paramsArray : target?.paramsArray;
+  _target.loadSchema = source?.loadSchema ? source.loadSchema : target?.loadSchema;
+  _target.asyncFactory = source?.asyncFactory ? source.asyncFactory : target?.asyncFactory;
+  return _target as ModuleDefinition;
+}
+
 
 export function isModuleDefinition(module: any | ModuleDefinition): module is ModuleDefinition {
   const moduleNameExists = 'moduleName' in module;
