@@ -91,7 +91,7 @@ export type ModuleDefinition = {
  * @param mergeInto
  */
 export function _mergeModuleDefinition(target?: ModuleDefinition, source?: ModuleDefinition, mergeInto = false): ModuleDefinition {
-  const _target: Partial<ModuleDefinition> = mergeInto ? target : {};
+  const _target: Partial<ModuleDefinition> = mergeInto ? target ? target : {} : {};
   _target.moduleName = source?.moduleName ? source.moduleName : target?.moduleName;
   _target.functionName = source?.functionName ? source.functionName : target?.functionName;
   _target.constructorName = source?.constructorName ? source.constructorName : target?.constructorName;
