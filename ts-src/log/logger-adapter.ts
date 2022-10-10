@@ -176,7 +176,11 @@ export class LoggerAdapter implements LoggerI {
   }
 
   error(err, data?: any, color: string = FgRed) {
-    this.logger.error(err, data, color);
+ //   if(err instanceof Error) {
+ //    this.logger.error(err, data, color);
+ //   } else {
+      this.log(this.logger.error, data, err, color, 'ERROR:');
+ //   }
   }
 
   warn(data, message?: string, color: string = FgYellow) {
@@ -319,7 +323,9 @@ export class LoggerAdapter implements LoggerI {
     if (!this.execContext?.config?.log?.logAttributes?.hideLevel && !this.execContext?.config?.log?.flatten) {
       logObject['logLevel'] = LoggerAdapter.levels[this.level];
     }
-    logObject['data'] = data;
+    if(data) {
+      logObject['data'] = data;
+    }
     return logObject;
   }
 
