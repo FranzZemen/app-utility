@@ -175,8 +175,8 @@ export class LoggerAdapter implements LoggerI {
     return this;
   }
 
-  error(err, stacktrace?: any, color: string = FgRed) {
-    this.logger.error(err, stacktrace, color);
+  error(err, data?: any, color: string = FgRed) {
+    this.logger.error(err, data, color);
   }
 
   warn(data, message?: string, color: string = FgYellow) {

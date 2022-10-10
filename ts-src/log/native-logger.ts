@@ -4,24 +4,44 @@ import {LoggerI} from './logger-adapter.js';
 
 export class NativeLogger implements LoggerI {
 
-  error(err, stacktrace?: any, color: string = FgRed) {
-    console.error(color, err, stacktrace);
+  error(err, data?: any, color: string = FgRed) {
+    if(data) {
+      console.error(color, err, data);
+    } else {
+      console.error(color, err);
+    }
   }
 
   warn(data, message?: string, color: string = FgYellow) {
-    console.warn(color, data, message);
+    if(message) {
+      console.warn(color, data);
+    } else {
+      console.warn(color, data, message);
+    }
   }
 
   info(data, message?: string, color: string = FgGreen) {
-    console.info(color, data, message);
+    if(message) {
+      console.info(color, data);
+    } else {
+      console.info(color, data, message);
+    }
   }
 
   debug(data, message?: string, color: string = FgCyan) {
-    console.debug(color, data, message);
+    if(message) {
+      console.debug(color, data);
+    } else {
+      console.debug(color, data, message);
+    }
   }
 
   trace(data, message?: string, color: string = FgMagenta) {
-     console.trace(color, data, message);
+    if(message) {
+      console.trace(color, data);
+    } else {
+      console.trace(color, data, message);
+    }
   }
 }
 
