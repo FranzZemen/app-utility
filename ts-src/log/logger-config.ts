@@ -14,6 +14,10 @@ export interface LogOverrideConfigI {
   showHidden?: boolean;
   // The override for object depth inspect will use
   depth?: number;
+  // Hide timestamp
+  hideTimestamp?: boolean;
+  // Hide Severity Prefix
+  hideSeverityPrefix?: boolean;
 }
 
 // Configuration object and schema for fastest validator
@@ -48,7 +52,9 @@ export const logOverrideSchema = {
       }
     }],
     showHidden: {type: 'boolean', optional: true},
-    depth: {type: 'number', optional: true}
+    depth: {type: 'number', optional: true},
+    hideTimestamp: {type: 'boolean', optional: true},
+    hideSeverityPrefix: {type: 'boolean', optional: true}
   }
 };
 
@@ -68,6 +74,10 @@ export interface LogConfigI {
   overrides?: LogOverrideConfigI[];
   // The log attributes are 'flattened' into a single line, not logged as an object along with the data
   flatten?: boolean;
+  // Hide timestamp
+  hideTimestamp?: boolean;
+  // Hide Severity Prefix
+  hideSeverityPrefix?: boolean;
   // The log attributes logging flags
   logAttributes?: {
     // If true or missing, logs the appContext from the Execution Context
@@ -106,6 +116,8 @@ export const logConfigSchema = {
       items: logOverrideSchema
     },
     flatten: {type: 'boolean', optional: true},
+    hideTimestamp: {type: 'boolean', optional: true},
+    hideSeverityPrefix: {type: 'boolean', optional: true},
     logAttributes: {
       type: 'object',
       optional: true,

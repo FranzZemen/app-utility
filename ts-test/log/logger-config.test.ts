@@ -77,5 +77,20 @@ describe ('base-utility tests', () => {
       log.debug({foo: 'bar2'}, 'It is foo bar2');
       done();
     });
+    it('should log, hiding timestamp and severity prefix', done => {
+      const execContext: ExecutionContextI = {
+        config: {
+          log:{
+            level:'debug',
+            hideTimestamp: true,
+            hideSeverityPrefix: true
+          }
+        }
+      };
+      const log: LoggerAdapter = new LoggerAdapter(execContext);
+      log.debug('It is bar2?');
+      log.debug({foo: 'bar2'}, 'It is foo bar2');
+      done();
+    });
   });
 });

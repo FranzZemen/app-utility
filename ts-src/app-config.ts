@@ -1,5 +1,4 @@
 import Validator, {ValidationError, ValidationSchema} from 'fastest-validator';
-import {isPromise} from 'node:util/types';
 import {LogConfigI, logConfigSchema} from './log/index.js';
 
 export interface AppConfigI {

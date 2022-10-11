@@ -1,11 +1,10 @@
 import {createRequire} from 'module';
 import {inspect} from 'util';
 import {isPromise} from 'util/types';
-import {logErrorAndThrow} from '../enhanced-error.js';
-import {NativeLogger} from './native-logger.js';
 import {ExecutionContextI} from '../execution-context.js';
 import {loadFromModule} from '../load-from-module.js';
 import {FgCyan, FgGreen, FgMagenta, FgRed, FgYellow, Reset} from './color-constants.js';
+import {NativeLogger} from './native-logger.js';
 
 const requireModule = createRequire(import.meta.url);
 const moment = requireModule('moment');
@@ -55,6 +54,10 @@ export class LoggerAdapter implements LoggerI {
 
   private showHiddenInspectAttributes = false;
   private depth = 5;
+
+  private hideTimestamp = false;
+
+  private hideSeverityPrefix = false;
 
   private attributesAsString: string;
 
@@ -131,7 +134,8 @@ export class LoggerAdapter implements LoggerI {
       this.showHiddenInspectAttributes = false;
     }
     this.depth = this.execContext.config.log.depth === undefined ? 5 : this.execContext.config.log.depth;
-
+    this.hideTimestamp = this.execContext.config.log.hideTimestamp === undefined ? false : this.execContext.config.log.hideTimestamp;
+    this.hideSeverityPrefix = this.execContext.config.log.hideSeverityPrefix === undefined ? false : this.execContext.config.log.hideSeverityPrefix;
     this.initializeOverrides();
 
     const logAttributes = this.execContext.config.log.logAttributes;
@@ -210,13 +214,13 @@ export class LoggerAdapter implements LoggerI {
   log(logMethod: (color: string, logMessage: string) => void, data: any, message: string, color: string, cwcPrefix: string) {
     // TODO modify to support cloud watch format
     if (data && (typeof data === 'string')) {
-      const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
       logMethod(color + str + Reset, '');
     } else if (this.execContext?.config?.log?.flatten) {
-      const str = `${utc().format(this.momentFormat)} ${cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset, '');
     } else {
-      const str = `${utc().format(this.momentFormat)} ${cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
+      const str = `${this.hideTimestamp? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset, '');
     }
 
@@ -268,6 +272,9 @@ export class LoggerAdapter implements LoggerI {
           if (override.depth) {
             this.depth = override.depth;
           }
+          if(override.hideTimestamp) {
+            this.hideTimestamp = override.hideTimestamp;
+          }
         } else if (!override.method) {
           // Override on source
           const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
@@ -278,6 +285,9 @@ export class LoggerAdapter implements LoggerI {
             }
             if (override.depth) {
               this.depth = override.depth;
+            }
+            if(override.hideTimestamp) {
+              this.hideTimestamp = override.hideTimestamp;
             }
           }
         } else {
@@ -290,6 +300,9 @@ export class LoggerAdapter implements LoggerI {
             }
             if (override.depth) {
               this.depth = override.depth;
+            }
+            if(override.hideTimestamp) {
+              this.hideTimestamp = override.hideTimestamp;
             }
           }
         }
