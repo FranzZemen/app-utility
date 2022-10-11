@@ -214,16 +214,19 @@ export class LoggerAdapter implements LoggerI {
   log(logMethod: (color: string, logMessage: string) => void, data: any, message: string, color: string, cwcPrefix: string) {
     // TODO modify to support cloud watch format
     if (data && (typeof data === 'string')) {
-      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}${(message ? message + ' ' + data + this.attributesAsString : data + this.attributesAsString)}`;
       logMethod(color + str + Reset, '');
     } else if (this.execContext?.config?.log?.flatten) {
-      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + Reset + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth, true);
       logMethod(color + str + Reset, '');
     } else {
-      const str = `${this.hideTimestamp? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${this.hideTimestamp && this.hideSeverityPrefix ? ' ': '\r\n  '}` + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
-      logMethod(color + str + Reset, '');
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}` + '\r\n' + Reset  + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth, true);
+      if(this.hideTimestamp && this.hideSeverityPrefix) {
+        logMethod(Reset + str,'');
+      } else {
+        logMethod(color + str + Reset, '');
+      }
     }
-
   }
 
   startTiming(context) {
