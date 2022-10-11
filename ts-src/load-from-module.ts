@@ -182,7 +182,13 @@ function validateSchema<T>(moduleName: string, moduleDef: ModuleDefinition, obj,
         if (result === true) {
           return obj;
         } else {
-          log.warn({moduleDef, moduleName, schema: isLoadSchema(moduleDef.loadSchema) ? moduleDef.loadSchema : 'compiled', obj, result}, 'Sync validation failed.');
+          log.warn({
+            moduleDef,
+            moduleName,
+            schema: isLoadSchema(moduleDef.loadSchema) ? moduleDef.loadSchema : 'compiled',
+            obj,
+            result
+          }, 'Sync validation failed.');
           const err = new Error(`Sync validation failed for ${moduleName}`);
           logErrorAndThrow(err, log, ec);
         }
@@ -216,10 +222,10 @@ function validateSchema<T>(moduleName: string, moduleDef: ModuleDefinition, obj,
   }
 }
 
-export function loadJSONResource(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
+export function loadJSONResource<T>(moduleDef: ModuleDefinition, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONResource');
   // JSON can always be loaded dynamically with require in both commonjs and es
-  if(moduleDef.moduleResolution === ModuleResolution.json) {
+  if (moduleDef.moduleResolution === ModuleResolution.json) {
     // TODO: Should we switch to dynamic import in es 6 with the assertion?  Noting that it would force a Promise all the time
     /*
     const { default: info } = await import("./package.json", {
@@ -233,13 +239,13 @@ export function loadJSONResource(moduleDef: ModuleDefinition, ec?: ExecutionCont
     const maybeJSON = requireModule(moduleDef.moduleName);
     if (maybeJSON) {
       // Protect from abuse
-      let jsonObject;
+      let jsonObject: T;
       try {
         jsonObject = JSON.parse(JSON.stringify(maybeJSON));
       } catch (err) {
         logErrorAndThrow(err, log, ec);
       }
-      return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObject, ec);
+      return validateSchema<T>(moduleDef.moduleName, moduleDef, jsonObject, ec);
     } else {
       const err = new Error(`${moduleDef.moduleName} does not point to a JSON string`);
       logErrorAndThrow(err, log, ec);
@@ -249,7 +255,7 @@ export function loadJSONResource(moduleDef: ModuleDefinition, ec?: ExecutionCont
   }
 }
 
-function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
+function loadJSONPropertyFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONPropertyFromModule');
   if (moduleDef.functionName) {
     const resource = objectPath.get(module, moduleDef.functionName);
@@ -266,9 +272,9 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
         jsonAsStringOrPromise
           .then(jsonAsString => {
             if (typeof jsonAsString === 'string') {
-              const jsonObj = JSON.parse(jsonAsString);
+              const jsonObj: T = JSON.parse(jsonAsString);
               if (moduleDef.loadSchema) {
-                return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObj, ec);
+                return validateSchema<T>(moduleDef.moduleName, moduleDef, jsonObj, ec);
               } else {
                 return jsonObj;
               }
@@ -280,9 +286,9 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
       } else {
         moduleDef.asyncFactory = false;
         if (typeof jsonAsStringOrPromise === 'string') {
-          const jsonObj = JSON.parse(jsonAsStringOrPromise);
+          const jsonObj: T = JSON.parse(jsonAsStringOrPromise);
           if (moduleDef.loadSchema) {
-            return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObj, ec);
+            return validateSchema<T>(moduleDef.moduleName, moduleDef, jsonObj, ec);
           } else {
             return jsonObj;
           }
@@ -307,9 +313,9 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
       resource
         .then((jsonAsString: string) => {
           if (typeof jsonAsString === 'string') {
-            const jsonObj = JSON.parse(jsonAsString);
+            const jsonObj: T = JSON.parse(jsonAsString);
             if (moduleDef.loadSchema) {
-              return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObj, ec);
+              return validateSchema<T>(moduleDef.moduleName, moduleDef, jsonObj, ec);
             } else {
               return jsonObj;
             }
@@ -320,9 +326,9 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
         });
     } else {
       if (typeof resource === 'string') {
-        const jsonObj = JSON.parse(resource);
+        const jsonObj: T = JSON.parse(resource);
         if (moduleDef.loadSchema) {
-          return validateSchema<any>(moduleDef.moduleName, moduleDef, jsonObj, ec);
+          return validateSchema<T>(moduleDef.moduleName, moduleDef, jsonObj, ec);
         } else {
           return jsonObj;
         }
@@ -337,7 +343,7 @@ function loadJSONPropertyFromModule(module: any, moduleDef: ModuleDefinition, ec
   }
 }
 
-export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionContextI): Object | Promise<Object> {
+export function loadJSONFromPackage<T>(moduleDef: ModuleDefinition, ec?: ExecutionContextI): T | Promise<T> {
   const log = new LoggerAdapter(ec, '@franzzemen/app-utility', 'load-from-module', 'loadJSONFromPackage');
   const functionName = moduleDef?.functionName?.trim();
   const propertyName = moduleDef?.propertyName?.trim();
@@ -354,7 +360,7 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionC
         log.debug('es module resolution, forcing asynchronous result');
         return import(moduleDef.moduleName)
           .then(module => {
-            return loadJSONPropertyFromModule(module, moduleDef, ec);
+            return loadJSONPropertyFromModule<T>(module, moduleDef, ec);
           }, err => {
             throw logErrorAndReturn(err, log, ec);
           });
@@ -362,7 +368,7 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionC
         log.debug('COMMONJS module resolution');
         let module = requireModule(moduleDef.moduleName);
         // Note...this could be a Promise if any validation is async
-        return loadJSONPropertyFromModule(module, moduleDef, ec);
+        return loadJSONPropertyFromModule<T>(module, moduleDef, ec);
       }
     }
   } else {
@@ -373,7 +379,7 @@ export function loadJSONFromPackage(moduleDef: ModuleDefinition, ec?: ExecutionC
 function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?: ExecutionContextI): Promise<T> | T {
   let t: T;
   let factoryFunctionName = moduleDef.functionName;
-  if(!factoryFunctionName && !moduleDef.constructorName) {
+  if (!factoryFunctionName && !moduleDef.constructorName) {
     factoryFunctionName = 'default';
   }
   if (factoryFunctionName) {
@@ -397,7 +403,7 @@ function loadInstanceFromModule<T>(module: any, moduleDef: ModuleDefinition, ec?
         moduleDef.asyncFactory = true;
         return t
           .then((tt: T) => {
-              return validateSchema<T>(moduleDef.moduleName, moduleDef, tt, ec);
+            return validateSchema<T>(moduleDef.moduleName, moduleDef, tt, ec);
           });
       } else {
         moduleDef.asyncFactory = false;
@@ -457,7 +463,7 @@ export function loadFromModule<T>(moduleDef: ModuleDefinition, ec?: ExecutionCon
     } else {
       log.debug('commonjs module resolution');
       const module = requireModule(moduleDef.moduleName);
-      if(!module) {
+      if (!module) {
         const err = new Error(`No module for ${moduleDef.moduleName}`);
         logErrorAndThrow(err, log, ec);
       }
