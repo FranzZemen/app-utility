@@ -220,7 +220,7 @@ export class LoggerAdapter implements LoggerI {
       const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset, '');
     } else {
-      const str = `${this.hideTimestamp? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix}` + '\r\n' + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
+      const str = `${this.hideTimestamp? '' : utc().format(this.momentFormat)} ${this.hideSeverityPrefix ? '' :cwcPrefix} ${this.hideTimestamp && this.hideSeverityPrefix ? ' ': '\r\n  '}` + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth);
       logMethod(color + str + Reset, '');
     }
 
