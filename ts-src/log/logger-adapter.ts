@@ -265,44 +265,59 @@ export class LoggerAdapter implements LoggerI {
       if (override) {
         if (!override.source && !override.method) {
           // Override on repo
-          this.level = LoggerAdapter.levels.indexOf(override.level);
-          if (override.showHidden) {
+          if(override.level !== undefined) {
+            this.level = LoggerAdapter.levels.indexOf(override.level);
+          }
+          if (override.showHidden !== undefined) {
             this.showHiddenInspectAttributes = override.showHidden;
           }
-          if (override.depth) {
+          if (override.depth !== undefined) {
             this.depth = override.depth;
           }
-          if(override.hideTimestamp) {
+          if(override.hideTimestamp !== undefined) {
             this.hideTimestamp = override.hideTimestamp;
+          }
+          if(override.hideSeverityPrefix !== undefined) {
+            this.hideSeverityPrefix = override.hideSeverityPrefix;
           }
         } else if (!override.method) {
           // Override on source
           const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
           if (matchesSourceFile) {
-            this.level = LoggerAdapter.levels.indexOf(override.level);
-            if (override.showHidden) {
+            if(override.level !== undefined) {
+              this.level = LoggerAdapter.levels.indexOf(override.level);
+            }
+            if (override.showHidden !== undefined) {
               this.showHiddenInspectAttributes = override.showHidden;
             }
-            if (override.depth) {
+            if (override.depth !== undefined) {
               this.depth = override.depth;
             }
-            if(override.hideTimestamp) {
+            if(override.hideTimestamp !== undefined) {
               this.hideTimestamp = override.hideTimestamp;
+            }
+            if(override.hideSeverityPrefix !== undefined) {
+              this.hideSeverityPrefix = override.hideSeverityPrefix;
             }
           }
         } else {
           const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
           const matchesMethod = override && override.method ? override.method === this._method : true;
           if (matchesSourceFile && matchesMethod) {
-            this.level = LoggerAdapter.levels.indexOf(override.level);
-            if (override.showHidden) {
+            if(override.level !== undefined) {
+              this.level = LoggerAdapter.levels.indexOf(override.level);
+            }
+            if (override.showHidden !== undefined) {
               this.showHiddenInspectAttributes = override.showHidden;
             }
-            if (override.depth) {
+            if (override.depth !== undefined) {
               this.depth = override.depth;
             }
-            if(override.hideTimestamp) {
+            if(override.hideTimestamp !== undefined) {
               this.hideTimestamp = override.hideTimestamp;
+            }
+            if(override.hideSeverityPrefix !== undefined) {
+              this.hideSeverityPrefix = override.hideSeverityPrefix;
             }
           }
         }
