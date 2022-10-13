@@ -188,25 +188,25 @@ export class LoggerAdapter implements LoggerI {
   }
 
   warn(data, message?: string, color: string = FgYellow) {
-    if (this.warnAllowed()) {
+    if (this.isWarnEnabled()) {
       this.log(this.logger.warn, data, message, color, 'WARN:');
     }
   }
 
   info(data, message?: string, color: string = FgGreen) {
-    if (this.infoAllowed()) {
+    if (this.isInfoEnabled()) {
       this.log(this.logger.info, data, message, color, 'INFO:');
     }
   }
 
   debug(data, message?: string, color: string = FgCyan) {
-    if (this.debugAllowed()) {
+    if (this.isDebugEnabled()) {
       this.log(this.logger.debug, data, message, color, 'DEBUG:');
     }
   }
 
   trace(data, message?: string, color: string = FgMagenta) {
-    if (this.traceAllowed()) {
+    if (this.isTracingEnabled()) {
       this.log(this.logger.debug, data, message, color, 'TRACE:');
     }
   }
@@ -360,19 +360,19 @@ export class LoggerAdapter implements LoggerI {
     return logObject;
   }
 
-  private warnAllowed(): boolean {
+  public isWarnEnabled(): boolean {
     return this.level > LoggerAdapter._error;
   }
 
-  private infoAllowed(): boolean {
+  public isInfoEnabled(): boolean {
     return this.level > LoggerAdapter._warn;
   }
 
-  private debugAllowed(): boolean {
+  public isDebugEnabled(): boolean {
     return this.level > LoggerAdapter._info;
   }
 
-  private traceAllowed(): boolean {
+  public isTracingEnabled(): boolean {
     return this.level > LoggerAdapter._debug;
   }
 }
