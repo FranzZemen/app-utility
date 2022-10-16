@@ -9,3 +9,4 @@ export * from './fastest-validator-util.js';
 export * from './module-resolver.js';
 export * from './escape-regex.js';
 export * from './await-evaluation.js';
+export * from './enhanced-error.js';
