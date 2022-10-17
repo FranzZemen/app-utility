@@ -73,13 +73,13 @@ export class LoggerAdapter implements LoggerI {
         config: {
           log: {
             logAttributes: {
-              hideAppContext: true,
-              hideRepo: true,
-              hideSourceFile: true,
-              hideMethod: true,
-              hideThread: true,
-              hideLevel: true,
-              hideRequestId: true
+              hideAppContext: false,
+              hideRepo: false,
+              hideSourceFile: false,
+              hideMethod: false,
+              hideThread: false,
+              hideLevel: false,
+              hideRequestId: false
             }
           }
         }
@@ -89,13 +89,13 @@ export class LoggerAdapter implements LoggerI {
       this.execContext.config = {
         log: {
           logAttributes: {
-            hideAppContext: true,
-            hideRepo: true,
-            hideSourceFile: true,
-            hideMethod: true,
-            hideThread: true,
-            hideLevel: true,
-            hideRequestId: true
+            hideAppContext: false,
+            hideRepo: false,
+            hideSourceFile: false,
+            hideMethod: false,
+            hideThread: false,
+            hideLevel: false,
+            hideRequestId: false
           }
         }
       };
@@ -103,25 +103,25 @@ export class LoggerAdapter implements LoggerI {
     if (!this.execContext.config.log) {
       this.execContext.config.log = {
         logAttributes: {
-          hideAppContext: true,
-          hideRepo: true,
-          hideSourceFile: true,
-          hideMethod: true,
-          hideThread: true,
-          hideLevel: true,
-          hideRequestId: true
+          hideAppContext: false,
+          hideRepo: false,
+          hideSourceFile: false,
+          hideMethod: false,
+          hideThread: false,
+          hideLevel: false,
+          hideRequestId: false
         }
       };
     }
     if (!this.execContext.config.log.logAttributes) {
       this.execContext.config.log.logAttributes = {
-        hideAppContext: true,
-        hideRepo: true,
-        hideSourceFile: true,
-        hideMethod: true,
-        hideThread: true,
-        hideLevel: true,
-        hideRequestId: true
+        hideAppContext: false,
+        hideRepo: false,
+        hideSourceFile: false,
+        hideMethod: false,
+        hideThread: false,
+        hideLevel: false,
+        hideRequestId: false
       };
     }
     if (this.execContext.config.log.level) {
@@ -148,7 +148,7 @@ export class LoggerAdapter implements LoggerI {
       + (logAttributes.hideRequestId === false ? '; requestId: ' + this.execContext?.requestId : '')
       + (logAttributes.hideLevel === false ? '; logLevel: ' + LoggerAdapter.levels[this.level] : '');
 
-    if(loggerImpl) {
+    if (loggerImpl) {
       this.logger = loggerImpl;
     } else {
       const module = this.execContext?.config?.log?.loggerModule;
@@ -180,11 +180,11 @@ export class LoggerAdapter implements LoggerI {
   }
 
   error(err, data?: any, color: string = FgRed) {
- //   if(err instanceof Error) {
- //    this.logger.error(err, data, color);
- //   } else {
-      this.log(this.logger.error, data, err, color, 'ERROR:');
- //   }
+    //   if(err instanceof Error) {
+    //    this.logger.error(err, data, color);
+    //   } else {
+    this.log(this.logger.error, data, err, color, 'ERROR:');
+    //   }
   }
 
   warn(data, message?: string, color: string = FgYellow) {
@@ -220,9 +220,9 @@ export class LoggerAdapter implements LoggerI {
       const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}${(message ? message + ' ' + this.attributesAsString : this.attributesAsString)}` + '\r\n' + Reset + inspect(this.getLogObject(data), this.showHiddenInspectAttributes, this.depth, true);
       logMethod(color + str + Reset, '');
     } else {
-      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}` + '\r\n' + Reset  + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth, true);
-      if(this.hideTimestamp && this.hideSeverityPrefix) {
-        logMethod(Reset + str,'');
+      const str = `${this.hideTimestamp ? '' : utc().format(this.momentFormat) + ' '}${this.hideSeverityPrefix ? '' : cwcPrefix + ' '}` + '\r\n' + Reset + inspect(this.getLogObject(data, message), this.showHiddenInspectAttributes, this.depth, true);
+      if (this.hideTimestamp && this.hideSeverityPrefix) {
+        logMethod(Reset + str, '');
       } else {
         logMethod(color + str + Reset, '');
       }
@@ -262,104 +262,6 @@ export class LoggerAdapter implements LoggerI {
     }
   }
 
-  private initializeOverrides() {
-    if (this.execContext && this.execContext.config && this.execContext.config.log && this.execContext.config.log.overrides) {
-      const override = this.execContext.config.log.overrides.find(override => override.repo === this.repo);
-      if (override) {
-        if (!override.source && !override.method) {
-          // Override on repo
-          if(override.level !== undefined) {
-            this.level = LoggerAdapter.levels.indexOf(override.level);
-          }
-          if (override.showHidden !== undefined) {
-            this.showHiddenInspectAttributes = override.showHidden;
-          }
-          if (override.depth !== undefined) {
-            this.depth = override.depth;
-          }
-          if(override.hideTimestamp !== undefined) {
-            this.hideTimestamp = override.hideTimestamp;
-          }
-          if(override.hideSeverityPrefix !== undefined) {
-            this.hideSeverityPrefix = override.hideSeverityPrefix;
-          }
-        } else if (!override.method) {
-          // Override on source
-          const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
-          if (matchesSourceFile) {
-            if(override.level !== undefined) {
-              this.level = LoggerAdapter.levels.indexOf(override.level);
-            }
-            if (override.showHidden !== undefined) {
-              this.showHiddenInspectAttributes = override.showHidden;
-            }
-            if (override.depth !== undefined) {
-              this.depth = override.depth;
-            }
-            if(override.hideTimestamp !== undefined) {
-              this.hideTimestamp = override.hideTimestamp;
-            }
-            if(override.hideSeverityPrefix !== undefined) {
-              this.hideSeverityPrefix = override.hideSeverityPrefix;
-            }
-          }
-        } else {
-          const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
-          const matchesMethod = override && override.method ? override.method === this._method : true;
-          if (matchesSourceFile && matchesMethod) {
-            if(override.level !== undefined) {
-              this.level = LoggerAdapter.levels.indexOf(override.level);
-            }
-            if (override.showHidden !== undefined) {
-              this.showHiddenInspectAttributes = override.showHidden;
-            }
-            if (override.depth !== undefined) {
-              this.depth = override.depth;
-            }
-            if(override.hideTimestamp !== undefined) {
-              this.hideTimestamp = override.hideTimestamp;
-            }
-            if(override.hideSeverityPrefix !== undefined) {
-              this.hideSeverityPrefix = override.hideSeverityPrefix;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private getLogObject(data, message?: string): any {
-    let logObject = {};
-    if (message) {
-      logObject['message'] = message;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideAppContext && !this.execContext?.config?.log?.flatten) {
-      logObject['appContext'] = this.execContext?.appContext;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideRepo && !this.execContext?.config?.log?.flatten) {
-      logObject['repo'] = this.repo;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideSourceFile && !this.execContext?.config?.log?.flatten) {
-      logObject['sourceFile'] = this.sourceFile;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideMethod && !this.execContext?.config?.log?.flatten) {
-      logObject['method'] = this._method;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideThread && !this.execContext?.config?.log?.flatten) {
-      logObject['thread'] = this.execContext?.thread;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideRequestId && !this.execContext?.config?.log?.flatten) {
-      logObject['requestid'] = this.execContext?.requestId;
-    }
-    if (!this.execContext?.config?.log?.logAttributes?.hideLevel && !this.execContext?.config?.log?.flatten) {
-      logObject['logLevel'] = LoggerAdapter.levels[this.level];
-    }
-    if(data) {
-      logObject['data'] = data;
-    }
-    return logObject;
-  }
-
   public isWarnEnabled(): boolean {
     return this.level > LoggerAdapter._error;
   }
@@ -374,6 +276,114 @@ export class LoggerAdapter implements LoggerI {
 
   public isTracingEnabled(): boolean {
     return this.level > LoggerAdapter._debug;
+  }
+
+  private initializeOverrides() {
+    if (this.execContext && this.execContext.config && this.execContext.config.log && this.execContext.config.log.overrides) {
+      const override = this.execContext.config.log.overrides.find(override => override.repo === this.repo);
+      if (override) {
+        if (!override.source && !override.method) {
+          // Override on repo
+          if (override.level !== undefined) {
+            this.level = LoggerAdapter.levels.indexOf(override.level);
+          }
+          if (override.showHidden !== undefined) {
+            this.showHiddenInspectAttributes = override.showHidden;
+          }
+          if (override.depth !== undefined) {
+            this.depth = override.depth;
+          }
+          if (override.hideTimestamp !== undefined) {
+            this.hideTimestamp = override.hideTimestamp;
+          }
+          if (override.hideSeverityPrefix !== undefined) {
+            this.hideSeverityPrefix = override.hideSeverityPrefix;
+          }
+        } else if (!override.method) {
+          // Override on source
+          const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
+          if (matchesSourceFile) {
+            if (override.level !== undefined) {
+              this.level = LoggerAdapter.levels.indexOf(override.level);
+            }
+            if (override.showHidden !== undefined) {
+              this.showHiddenInspectAttributes = override.showHidden;
+            }
+            if (override.depth !== undefined) {
+              this.depth = override.depth;
+            }
+            if (override.hideTimestamp !== undefined) {
+              this.hideTimestamp = override.hideTimestamp;
+            }
+            if (override.hideSeverityPrefix !== undefined) {
+              this.hideSeverityPrefix = override.hideSeverityPrefix;
+            }
+          }
+        } else {
+          const matchesSourceFile = override.source ? override.source === this.sourceFile : true;
+          const matchesMethod = override && override.method ? override.method === this._method : true;
+          if (matchesSourceFile && matchesMethod) {
+            if (override.level !== undefined) {
+              this.level = LoggerAdapter.levels.indexOf(override.level);
+            }
+            if (override.showHidden !== undefined) {
+              this.showHiddenInspectAttributes = override.showHidden;
+            }
+            if (override.depth !== undefined) {
+              this.depth = override.depth;
+            }
+            if (override.hideTimestamp !== undefined) {
+              this.hideTimestamp = override.hideTimestamp;
+            }
+            if (override.hideSeverityPrefix !== undefined) {
+              this.hideSeverityPrefix = override.hideSeverityPrefix;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private getLogObject(data, message?: string): any {
+    let logObject = {};
+    if (message) {
+      logObject['message'] = message;
+    }
+    const flatten = this.execContext?.config?.log?.flatten === true;
+    const hideAppContext = this.execContext?.config?.log?.logAttributes?.hideAppContext === true;
+    const hideRepo = this.execContext?.config?.log?.logAttributes?.hideRepo === true;
+    const hideSourceFile = this.execContext?.config?.log?.logAttributes?.hideSourceFile === true;
+    const hideMethod = this.execContext?.config?.log?.logAttributes?.hideMethod === true;
+    const hideThread = this.execContext?.config?.log?.logAttributes?.hideThread === true;
+    const hideRequestId = this.execContext?.config?.log?.logAttributes?.hideRequestId === true;
+    const hideLevel = this.execContext?.config?.log?.logAttributes?.hideLevel === true;
+    if (!flatten) {
+      if (!hideAppContext) {
+        logObject['appContext'] = this.execContext?.appContext;
+      }
+      if (!hideRepo) {
+        logObject['repo'] = this.repo;
+      }
+      if (!hideSourceFile) {
+        logObject['sourceFile'] = this.sourceFile;
+      }
+      if (!hideMethod) {
+        logObject['method'] = this._method;
+      }
+      if (!hideThread) {
+        logObject['thread'] = this.execContext?.thread;
+      }
+      if (!hideRequestId) {
+        logObject['requestid'] = this.execContext?.requestId;
+      }
+      if (!hideLevel) {
+        logObject['logLevel'] = LoggerAdapter.levels[this.level];
+      }
+    }
+    if (data) {
+      logObject['data'] = data;
+    }
+    return logObject;
   }
 }
 

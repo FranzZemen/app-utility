@@ -87,7 +87,7 @@ describe ('base-utility tests', () => {
           }
         }
       };
-      const log: LoggerAdapter = new LoggerAdapter(execContext);
+      const log: LoggerAdapter = new LoggerAdapter(execContext, 'app-utility', 'logger-config.test', 'should log, hiding timestamp and severity prefix');
       log.debug('It is bar2?');
       log.debug({foo: 'bar2'}, 'It is foo bar2');
       done();
